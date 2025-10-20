@@ -1,0 +1,29 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+	ignorecase = true
+	precomposeunicode = true
+[remote "origin"]
+	url = https://github.com/imsthegenius/nailapp.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "main"]
+	remote = origin
+	merge = refs/heads/main
+[branch "feature/payments"]
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/feature/payments
+[branch "feature/splash-screen"]
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/feature/splash-screen
+[branch "codex/plan-payment-implementation-for-app"]
+	remote = origin
+	merge = refs/heads/codex/plan-payment-implementation-for-app
+	vscode-merge-base = origin/codex/plan-payment-implementation-for-app
+[branch "codex/fix-photo-saving-issue-in-supabase"]
+	remote = origin
+	merge = refs/heads/codex/fix-photo-saving-issue-in-supabase
+	vscode-merge-base = origin/codex/fix-photo-saving-issue-in-supabase

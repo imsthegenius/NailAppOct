@@ -1,0 +1,35 @@
+{
+  "cli": {
+    "version": ">= 8.0.0"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "cache": {
+        "key": "pods-${hash:ios/Podfile.lock}"
+      },
+      "ios": {
+        "resourceClass": "m-medium",
+        "image": "sdk-53"
+      }
+    },
+    "payments": {
+      "distribution": "internal",
+      "cache": {
+        "key": "pods-${hash:ios/Podfile.lock}"
+      },
+      "ios": {
+        "resourceClass": "m-medium",
+        "image": "sdk-53"
+      }
+    },
+    "production": {
+      "ios": {
+        "resourceClass": "m-medium"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "allowedPaths": [
+    "nail-app-mobile/**",
+    "supabase/**",
+    "docs/**",
+    ".github/**",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "codex.config.json"
+  ],
+  "blockedPaths": [
+    "nail-app/**"
+  ]
+}
+

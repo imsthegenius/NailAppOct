@@ -1,0 +1,21 @@
+name: prevent-legacy-folder
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Block changes to retired nail-app folder
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          if git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- 'nail-app/**' | grep .; then
+            echo "The legacy nail-app/ folder is retired. Move changes into nail-app-mobile/."
+            exit 1
+          fi
+          echo "No legacy folder changes detected."

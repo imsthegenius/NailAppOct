@@ -1,0 +1,2 @@
+0000000000000000000000000000000000000000 7a195284caf9bdbf15cdccbe097c6caa4fa0df86 Imraan Habib <imraan@Imraans-MacBook-Pro.local> 1757591640 +0400	branch: Created from HEAD
+7a195284caf9bdbf15cdccbe097c6caa4fa0df86 dd8140d1b46ab009ea0f62b865b23549d4bf1075 Imraan Habib <imraan@Imraans-MacBook-Pro.local> 1757592146 +0400	commit: feat(splash): sequence both Figma screens (vector -> gradient+logo) and navigate into Design via Main navigator

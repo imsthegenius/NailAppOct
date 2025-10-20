@@ -1,0 +1,19 @@
+{
+  "name": "supabase-proxy",
+  "version": "1.0.0",
+  "description": "Proxy server to bypass DNS blocking for Supabase",
+  "main": "supabase-proxy-server.js",
+  "scripts": {
+    "start": "node supabase-proxy-server.js",
+    "dev": "nodemon supabase-proxy-server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.5",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

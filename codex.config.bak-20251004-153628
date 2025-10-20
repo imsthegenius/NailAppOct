@@ -1,0 +1,10 @@
+{
+  "workspace": {
+    "repo": "imsthegenius/nailapp",
+    "root": ".",
+    "writableRoots": [
+      "."
+    ]
+  }
+}
+

@@ -1,0 +1,75 @@
+{
+  "expo": {
+    "name": "nail-app-mobile",
+    "slug": "nail-app-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.nailglow.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "NailGlow needs camera access to capture photos of your nails for virtual nail polish try-on and AI transformation.",
+        "NSPhotoLibraryUsageDescription": "NailGlow needs photo library access to select nail photos and save your transformed designs.",
+        "NSPhotoLibraryAddUsageDescription": "NailGlow saves your transformed nail designs to your photo library so you can share them with your nail technician.",
+        "NSFaceIDUsageDescription": "NailGlow uses Face ID for secure and convenient access to your account.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false,
+          "NSExceptionDomains": {
+            "supabase.co": {
+              "NSExceptionAllowsInsecureHTTPLoads": false,
+              "NSIncludesSubdomains": true,
+              "NSRequiresCertificateTransparency": false
+            },
+            "workers.dev": {
+              "NSExceptionAllowsInsecureHTTPLoads": false,
+              "NSIncludesSubdomains": true,
+              "NSRequiresCertificateTransparency": false
+            },
+            "imraan.workers.dev": {
+              "NSExceptionAllowsInsecureHTTPLoads": false,
+              "NSIncludesSubdomains": true,
+              "NSRequiresCertificateTransparency": false
+            },
+            "localhost": {
+              "NSExceptionAllowsInsecureHTTPLoads": true
+            }
+          }
+        }
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.nailglow.app",
+      "permissions": [
+        "CAMERA",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_EXTERNAL_STORAGE"
+      ],
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-camera",
+      "expo-image-picker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "61025c3b-d62a-4855-b314-522786643a6d"
+      }
+    }
+  }
+}
