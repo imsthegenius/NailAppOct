@@ -6,17 +6,44 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
-  Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 
 export default function ConnectionTestScreen() {
   const [testResults, setTestResults] = useState<any[]>([]);
   const [testing, setTesting] = useState(false);
+  const [summary, setSummary] = useState<{ status: 'ok' | 'warn' | 'error'; message: string; hint?: string } | null>(null);
+  const resolvedSummary = summary ?? {
+    status: testing ? 'warn' as const : 'ok' as const,
+    message: testing ? 'Running diagnostics…' : 'Ready to run diagnostics',
+    hint: testing
+      ? 'Checking Cloudflare proxy, Supabase, and auth reachability.'
+      : 'Tap “Run Tests Again” to capture a fresh connection snapshot.',
+  };
+  const infoBoxStyle =
+    resolvedSummary.status === 'error'
+      ? styles.infoBoxError
+      : resolvedSummary.status === 'warn'
+        ? styles.infoBoxWarn
+        : styles.infoBoxOk;
+  const infoIconName =
+    resolvedSummary.status === 'error'
+      ? 'alert-circle'
+      : resolvedSummary.status === 'warn'
+        ? 'warning'
+        : 'checkmark-circle';
+  const infoIconColor =
+    resolvedSummary.status === 'error'
+      ? '#FF453A'
+      : resolvedSummary.status === 'warn'
+        ? '#FF9F0A'
+        : '#34C759';
 
   const runTests = async () => {
     setTesting(true);
     setTestResults([]);
+    setSummary(null);
     const results: any[] = [];
 
     // Test 1: Direct fetch to Cloudflare worker
@@ -110,6 +137,56 @@ export default function ConnectionTestScreen() {
     }
 
     setTestResults(results);
+
+    const failures = results.filter((result) => !result.success);
+    const workerFailure = results.some(
+      (result) => result.test.toLowerCase().includes('worker') && !result.success
+    );
+    const supabaseFailure = results.some(
+      (result) => result.test.toLowerCase().includes('supabase') && !result.success
+    );
+    const authFailure = results.some(
+      (result) => result.test.toLowerCase().includes('auth') && !result.success
+    );
+
+    if (failures.length === 0) {
+      setSummary({
+        status: 'ok',
+        message: 'All connectivity checks passed.',
+        hint: 'Reviewers can reach the Cloudflare proxy and Supabase services.',
+      });
+    } else if (workerFailure && supabaseFailure) {
+      setSummary({
+        status: 'error',
+        message: 'Both the Cloudflare proxy and Supabase API are unreachable.',
+        hint: 'Switch networks or enable Cloudflare WARP, then run these diagnostics again.',
+      });
+    } else if (workerFailure) {
+      setSummary({
+        status: 'warn',
+        message: 'The Cloudflare proxy is unreachable.',
+        hint: 'Ask reviewers to enable a VPN or share the fallback connection instructions.',
+      });
+    } else if (supabaseFailure) {
+      setSummary({
+        status: 'warn',
+        message: 'Supabase queries failed while the proxy responded.',
+        hint: 'Check Supabase status and reopen the app once the service is restored.',
+      });
+    } else if (authFailure) {
+      setSummary({
+        status: 'warn',
+        message: 'Auth test did not complete successfully.',
+        hint: 'Sign out and back in before retrying, or contact support if the issue persists.',
+      });
+    } else {
+      setSummary({
+        status: 'warn',
+        message: 'Some checks returned warnings.',
+        hint: 'Review the detailed results below and share them with support if needed.',
+      });
+    }
+
     setTesting(false);
   };
 
@@ -122,10 +199,14 @@ export default function ConnectionTestScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Connection Diagnostics</Text>
         
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            Testing connectivity to Supabase through Cloudflare proxy
-          </Text>
+        <View style={[styles.infoBox, infoBoxStyle]}>
+          <Ionicons name={infoIconName as any} size={22} color={infoIconColor} style={styles.infoIcon} />
+          <View style={styles.infoTextWrap}>
+            <Text style={styles.infoTitle}>{resolvedSummary.message}</Text>
+            {resolvedSummary.hint ? (
+              <Text style={styles.infoText}>{resolvedSummary.hint}</Text>
+            ) : null}
+          </View>
         </View>
 
         {testing && <Text style={styles.loading}>Running tests...</Text>}
@@ -167,6 +248,9 @@ export default function ConnectionTestScreen() {
           <Text style={styles.helpText}>
             4. Restart the Expo Go app
           </Text>
+          <Text style={styles.helpText}>
+            5. If the proxy remains offline, email support@nailglow.app and include a screenshot of these diagnostics.
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -188,14 +272,42 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   infoBox: {
-    backgroundColor: '#e3f2fd',
-    padding: 15,
-    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
     marginBottom: 20,
   },
+  infoBoxOk: {
+    backgroundColor: 'rgba(52, 199, 89, 0.12)',
+    borderColor: 'rgba(52, 199, 89, 0.35)',
+  },
+  infoBoxWarn: {
+    backgroundColor: 'rgba(255, 159, 10, 0.12)',
+    borderColor: 'rgba(255, 159, 10, 0.35)',
+  },
+  infoBoxError: {
+    backgroundColor: 'rgba(255, 69, 58, 0.12)',
+    borderColor: 'rgba(255, 69, 58, 0.35)',
+  },
+  infoIcon: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+  infoTextWrap: {
+    flex: 1,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1c1c1e',
+    marginBottom: 4,
+  },
   infoText: {
-    color: '#1976d2',
+    color: '#3a3a3c',
     fontSize: 14,
+    lineHeight: 20,
   },
   loading: {
     textAlign: 'center',

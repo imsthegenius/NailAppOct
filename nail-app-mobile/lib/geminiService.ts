@@ -17,6 +17,18 @@ const isExpoGo = Constants.appOwnership === 'expo';
 
 let ai: GoogleGenAI | null = null;
 
+const devLog = (...args: any[]) => {
+  if (__DEV__) {
+    console.log(...args);
+  }
+};
+
+const devWarn = (...args: any[]) => {
+  if (__DEV__) {
+    console.warn(...args);
+  }
+};
+
 async function ensureClient(): Promise<GoogleGenAI> {
   if (!ai) {
     const { GoogleGenAI } = await import('@google/genai');
@@ -101,7 +113,7 @@ async function callGeminiProxy(
     finishDescription: metadata.finish ? FINISH_DESCRIPTIONS[metadata.finish] : FINISH_DESCRIPTIONS.glossy,
   };
 
-  console.log('[Gemini] Using Cloudflare proxy:', endpoint);
+  devLog('[Gemini] Using Cloudflare proxy:', endpoint);
 
   // Add a 30s client-side timeout to avoid hanging requests
   const controller = new AbortController();
@@ -148,18 +160,18 @@ export async function transformNailsWithGemini(
   metadata: GeminiMetadata = {}
 ): Promise<string> {
   try {
-    console.log('=== GEMINI SERVICE RECEIVED ===');
-    console.log('Color Hex:', colorHex);
+    devLog('=== GEMINI SERVICE RECEIVED ===');
+    devLog('Color Hex:', colorHex);
     const isKeepCurrent = (shapeName || '').toLowerCase().includes('keep current');
-    console.log('Shape:', isKeepCurrent ? 'Keep Current (no change)' : shapeName);
-    console.log('Length:', lengthName || 'Medium');
-    console.log('Brand:', metadata.brand || '—');
-    console.log('Product line:', metadata.productLine || '—');
-    console.log('Finish:', metadata.finish || '—');
-    console.log('================================');
+    devLog('Shape:', isKeepCurrent ? 'Keep Current (no change)' : shapeName);
+    devLog('Length:', lengthName || 'Medium');
+    devLog('Brand:', metadata.brand || '—');
+    devLog('Product line:', metadata.productLine || '—');
+    devLog('Finish:', metadata.finish || '—');
+    devLog('================================');
 
     if (!colorHex.match(/^#[0-9A-F]{6}$/i)) {
-      console.warn('Invalid hex color format:', colorHex);
+      devWarn('Invalid hex color format:', colorHex);
     }
 
     if (GEMINI_PROXY_URL) {
@@ -185,9 +197,9 @@ export async function transformNailsWithGemini(
     const cleaned = cleanBase64(imageBase64);
 
     const imageSizeKB = (cleaned.length * 0.75) / 1024;
-    console.log(`Image size: ${imageSizeKB.toFixed(2)} KB`);
+    devLog(`Image size: ${imageSizeKB.toFixed(2)} KB`);
     if (imageSizeKB > 4096) {
-      console.warn('Image is very large, may cause timeout issues');
+      devWarn('Image is very large, may cause timeout issues');
     }
 
     const rgb = hexToRgb(colorHex);
@@ -248,7 +260,7 @@ Output a single edited image. Nails must be EXACTLY ${colorHex} (${rgbString}) w
 
     while (retries > 0) {
       try {
-        console.log(`Calling Gemini API (attempt ${3 - retries}/2)...`);
+        devLog(`Calling Gemini API (attempt ${3 - retries}/2)...`);
         const client = await ensureClient();
         response = await client.models.generateContent({
           model: "gemini-2.5-flash-image-preview",
@@ -261,22 +273,22 @@ Output a single edited image. Nails must be EXACTLY ${colorHex} (${rgbString}) w
           console.error('Gemini API call failed after retries:', error);
           throw error;
         }
-        console.log(`API call failed, retrying... (${retries} attempts left)`);
+        devLog(`API call failed, retrying... (${retries} attempts left)`);
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
-    console.log('Response structure:', JSON.stringify(response, null, 2).slice(0, 500));
+    devLog('Response structure:', JSON.stringify(response, null, 2).slice(0, 500));
 
     if (response.candidates && response.candidates.length > 0) {
       const candidate = response.candidates[0];
       if (candidate.content && candidate.content.parts) {
         for (const part of candidate.content.parts) {
           if (part.text) {
-            console.log('Text response:', part.text);
+            devLog('Text response:', part.text);
           } else if (part.inlineData) {
             const imageData = part.inlineData.data;
-            console.log('Successfully generated transformed nail image');
+            devLog('Successfully generated transformed nail image');
             return `data:${part.inlineData.mimeType || mimeType};base64,${imageData}`;
           }
         }
@@ -302,7 +314,7 @@ export async function mockTransformNails(
   lengthName?: string,
   metadata: GeminiMetadata = {}
 ): Promise<string> {
-  console.log('Mock transformation:', {
+  devLog('Mock transformation:', {
     colorName,
     shapeName,
     lengthName,

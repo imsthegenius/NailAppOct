@@ -1,11 +1,12 @@
 import 'react-native-get-random-values';
 import 'react-native-url-polyfill/auto';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { ActivityIndicator, View, Text } from 'react-native';
+import { ActivityIndicator } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DebugErrorBoundary from './components/DebugErrorBoundary';
 import { supabase } from './lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,12 +25,10 @@ import ConnectionTestScreen from './screens/ConnectionTestScreen';
 import PrivacyPolicyScreen from './screens/PrivacyPolicyScreen';
 import TermsOfServiceScreen from './screens/TermsOfServiceScreen';
 import DeleteAccountScreen from './screens/DeleteAccountScreen';
+import ConnectionStatusBanner, { ConnectionStatus } from './components/ConnectionStatusBanner';
 
 // Main App Navigator
 import MainNavigator from './navigation/MainNavigator';
-
-// Temporary: force a minimal Release render to verify RN boot
-const FORCE_RELEASE_BOOT_OK = true; // remove after diagnosing black screen
 
 // Types
 export type RootStackParamList = {
@@ -63,16 +62,33 @@ const Stack = createStackNavigator<RootStackParamList>();
 export default function App() {
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  
-  // If Release build is failing before UI, render a minimal screen to prove RN startup
-  if (!__DEV__ && FORCE_RELEASE_BOOT_OK) {
-    return (
-      <GestureHandlerRootView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f6f4f0' }}>
-        <Text>Boot OK</Text>
-      </GestureHandlerRootView>
-    );
-  }
-  
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
+  const [showConnectionBanner, setShowConnectionBanner] = useState(true);
+
+  const testConnections = useCallback(async () => {
+    try {
+      const { getConnectionStatus } = await import('./lib/checkSupabase');
+      const status = await getConnectionStatus();
+      setConnectionStatus(status);
+      setShowConnectionBanner(true);
+
+      if (__DEV__) {
+        console.log('Connection status snapshot:', status);
+      }
+    } catch (err: any) {
+      if (__DEV__) {
+        console.error('Connection test error:', err?.message || err);
+      }
+      setConnectionStatus({
+        internet: false,
+        supabase: false,
+        message: 'Unable to verify service status right now.',
+        isUsingProxy: false,
+      });
+      setShowConnectionBanner(true);
+    }
+  }, []);
+
   useEffect(() => {
     checkFirstLaunch();
     
@@ -111,36 +127,11 @@ export default function App() {
     };
     
     const authCleanup = setupAuth();
-    
-    console.log('NailGlow App Started');
-    
-    // Test connections on startup
-    const testConnections = async () => {
-      try {
-        const { getConnectionStatus } = await import('./lib/checkSupabase');
-        const status = await getConnectionStatus();
-        
-        console.log('=================================');
-        console.log('CONNECTION STATUS:');
-        console.log('Internet:', status.internet ? '✅ Connected' : '❌ Not connected');
-        
-        // Check if using proxy
-        const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://supabase-proxy.imraan.workers.dev';
-        const isUsingProxy = supabaseUrl.includes('workers.dev');
-        
-        if (isUsingProxy) {
-          console.log('Supabase: ✅ Connected via Cloudflare');
-        } else {
-          console.log('Supabase:', status.supabase ? '✅ Reachable' : '❌ Unreachable');
-        }
-        
-        console.log('Message:', status.message);
-        console.log('=================================');
-      } catch (err: any) {
-        console.error('Connection test error:', err.message);
-      }
-    };
-    
+
+    if (__DEV__) {
+      console.log('NailGlow App Started');
+    }
+
     testConnections();
     
     // Cleanup auth listener on unmount
@@ -176,7 +167,20 @@ export default function App() {
       </GestureHandlerRootView>
     );
   }
-  
+
+  const shouldShowBanner =
+    showConnectionBanner &&
+    connectionStatus &&
+    (!connectionStatus.internet || !connectionStatus.supabase);
+
+  const handleRetryConnections = () => {
+    testConnections();
+  };
+
+  const handleDismissBanner = () => {
+    setShowConnectionBanner(false);
+  };
+
   // Determine initial route - Show splash first
   const initialRoute: keyof RootStackParamList = 'Splash';
   // After splash, the logic will continue to appropriate screen
@@ -184,45 +188,54 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <DebugErrorBoundary>
-      <NavigationContainer>
-        <StatusBar style="dark" />
-        <Stack.Navigator
-          initialRouteName={initialRoute}
-          screenOptions={{
-            headerShown: false,
-            cardStyleInterpolator: ({ current, layouts }) => {
-              return {
-                cardStyle: {
-                  transform: [
-                    {
-                      translateX: current.progress.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [layouts.screen.width, 0],
-                      }),
-                    },
-                  ],
-                },
-              };
-            },
-          }}
-        >
-          <Stack.Screen 
-            name="Splash" 
-            component={SplashScreen} 
-            options={{ headerShown: false, gestureEnabled: false }} 
-          />
-          <Stack.Screen name="ConnectionTest" component={ConnectionTestScreen} />
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-          <Stack.Screen name="Main" component={MainNavigator} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Signup" component={SignupScreen} />
-          <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
-          <Stack.Screen name="LegalAcceptance" component={LegalAcceptanceScreen} />
-          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-          <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
-          <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
+        {shouldShowBanner && connectionStatus ? (
+          <SafeAreaView pointerEvents="box-none">
+            <ConnectionStatusBanner
+              status={connectionStatus}
+              onRetry={handleRetryConnections}
+              onDismiss={handleDismissBanner}
+            />
+          </SafeAreaView>
+        ) : null}
+        <NavigationContainer>
+          <StatusBar style="dark" />
+          <Stack.Navigator
+            initialRouteName={initialRoute}
+            screenOptions={{
+              headerShown: false,
+              cardStyleInterpolator: ({ current, layouts }) => {
+                return {
+                  cardStyle: {
+                    transform: [
+                      {
+                        translateX: current.progress.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [layouts.screen.width, 0],
+                        }),
+                      },
+                    ],
+                  },
+                };
+              },
+            }}
+          >
+            <Stack.Screen
+              name="Splash"
+              component={SplashScreen}
+              options={{ headerShown: false, gestureEnabled: false }}
+            />
+            <Stack.Screen name="ConnectionTest" component={ConnectionTestScreen} />
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+            <Stack.Screen name="Main" component={MainNavigator} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
+            <Stack.Screen name="LegalAcceptance" component={LegalAcceptanceScreen} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+            <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
       </DebugErrorBoundary>
     </GestureHandlerRootView>
   );

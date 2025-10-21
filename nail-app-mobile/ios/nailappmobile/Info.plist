@@ -89,8 +89,6 @@
     <string>NailGlow needs camera access to capture photos of your nails for virtual nail polish try-on and AI transformation.</string>
     <key>NSLocalNetworkUsageDescription</key>
     <string>NailGlow connects to your local development server during debugging to load JavaScript.</string>
-    <key>NSFaceIDUsageDescription</key>
-    <string>NailGlow uses Face ID for secure and convenient access to your account.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>NailGlow saves your transformed nail designs to your photo library so you can share them with your nail technician.</string>
     <key>NSPhotoLibraryUsageDescription</key>

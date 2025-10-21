@@ -11,6 +11,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -30,6 +31,27 @@ export default function DeleteAccountScreen({ navigation }: Props) {
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const openManageSubscriptions = async () => {
+    const iosUrl = 'itms-apps://apps.apple.com/account/subscriptions';
+    const iosFallbackUrl = 'https://apps.apple.com/account/subscriptions';
+    const androidUrl = 'https://play.google.com/store/account/subscriptions';
+    const targetUrl = Platform.OS === 'ios' ? iosUrl : androidUrl;
+
+    try {
+      const canOpen = await Linking.canOpenURL(targetUrl);
+      const urlToOpen = canOpen ? targetUrl : Platform.OS === 'ios' ? iosFallbackUrl : androidUrl;
+      await Linking.openURL(urlToOpen);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Unable to open subscription management:', error);
+      }
+      Alert.alert(
+        'Unable to open',
+        'Please manage your subscriptions directly from the App Store settings.'
+      );
+    }
+  };
 
   const handleDeleteAccount = async () => {
     // Validation
@@ -72,6 +94,7 @@ export default function DeleteAccountScreen({ navigation }: Props) {
       if (!session) {
         Alert.alert('Session Expired', 'Please log in again to delete your account.');
         navigation.navigate('Login' as any);
+        setIsDeleting(false);
         return;
       }
 
@@ -93,7 +116,9 @@ export default function DeleteAccountScreen({ navigation }: Props) {
       });
 
       if (deleteError) {
-        console.error('Account deletion error:', deleteError);
+        if (__DEV__) {
+          console.error('Account deletion error:', deleteError);
+        }
         
         // If RPC doesn't exist, we'll create a simpler deletion
         if (deleteError.message.includes('function') || deleteError.message.includes('does not exist')) {
@@ -115,9 +140,31 @@ export default function DeleteAccountScreen({ navigation }: Props) {
         }
       }
 
+      const { data: authDeletionResult, error: authDeletionError } = await supabase.functions.invoke<{
+        success: boolean;
+      }>('delete-auth-user', {
+        body: { userId: session.user.id },
+      });
+
+      if (authDeletionError || !authDeletionResult?.success) {
+        if (__DEV__) {
+          console.error('Auth user deletion error:', authDeletionError || authDeletionResult);
+        }
+        Alert.alert(
+          'Error',
+          'We removed your saved data but could not delete your sign-in. Please contact support so we can finish closing your account.'
+        );
+        setIsDeleting(false);
+        return;
+      }
+
       // Sign out and clear local data
       await supabase.auth.signOut();
       await AsyncStorage.clear();
+
+      setPassword('');
+      setConfirmText('');
+      setIsDeleting(false);
 
       // Show success message and navigate to login
       Alert.alert(
@@ -235,6 +282,20 @@ export default function DeleteAccountScreen({ navigation }: Props) {
             <Text style={styles.alternativeText}>
               If you're having issues with the app, our support team is here to help.
             </Text>
+            <TouchableOpacity
+              style={styles.manageSubscriptionButton}
+              onPress={openManageSubscriptions}
+              activeOpacity={0.85}
+            >
+              <View style={styles.manageIconWrap}>
+                <Ionicons name="card-outline" size={20} color="#FF3B30" />
+              </View>
+              <View style={styles.manageTextGroup}>
+                <Text style={styles.manageTitle}>Manage Subscription</Text>
+                <Text style={styles.manageSubtitle}>Opens the App Store to update billing.</Text>
+              </View>
+              <Ionicons name="open-outline" size={20} color="#FF3B30" />
+            </TouchableOpacity>
             <TouchableOpacity 
               style={styles.supportButton}
               onPress={() => Alert.alert('Support', 'Email us at support@nailglow.app')}
@@ -404,6 +465,40 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginBottom: 15,
+  },
+  manageSubscriptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#FFB8B3',
+    backgroundColor: '#FFF5F5',
+    marginBottom: 16,
+  },
+  manageIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 59, 48, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  manageTextGroup: {
+    flex: 1,
+  },
+  manageTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+  },
+  manageSubtitle: {
+    fontSize: 13,
+    color: '#555',
+    marginTop: 2,
   },
   supportButton: {
     paddingHorizontal: 30,

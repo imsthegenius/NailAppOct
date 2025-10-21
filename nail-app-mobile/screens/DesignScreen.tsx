@@ -308,7 +308,14 @@ const DesignScreen = () => {
       try {
         const stored = await AsyncStorage.getItem('pendingPhoto');
         if (stored) {
-          setPendingPhoto(JSON.parse(stored));
+          const parsed = JSON.parse(stored);
+          if (parsed?.imageUri) {
+            setPendingPhoto({
+              imageUri: parsed.imageUri,
+            });
+          } else {
+            setPendingPhoto(null);
+          }
         } else {
           setPendingPhoto(null);
         }

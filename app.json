@@ -19,7 +19,6 @@
         "NSCameraUsageDescription": "NailGlow needs camera access to capture photos of your nails for virtual nail polish try-on and AI transformation.",
         "NSPhotoLibraryUsageDescription": "NailGlow needs photo library access to select nail photos and save your transformed designs.",
         "NSPhotoLibraryAddUsageDescription": "NailGlow saves your transformed nail designs to your photo library so you can share them with your nail technician.",
-        "NSFaceIDUsageDescription": "NailGlow uses Face ID for secure and convenient access to your account.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false,
           "NSExceptionDomains": {
@@ -52,9 +51,7 @@
       },
       "package": "com.nailglow.app",
       "permissions": [
-        "CAMERA",
-        "WRITE_EXTERNAL_STORAGE",
-        "READ_EXTERNAL_STORAGE"
+        "CAMERA"
       ],
       "edgeToEdgeEnabled": true
     },

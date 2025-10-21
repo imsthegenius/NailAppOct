@@ -292,7 +292,6 @@ export default function ResultsScreen({ navigation, route }: Props) {
     // Store the original photo for reuse
     await AsyncStorage.setItem('pendingPhoto', JSON.stringify({
       imageUri: originalImageUri || imageUri,
-      base64: null // We'll need to handle base64 separately if needed
     }));
     
     // Navigate to Design screen to make new selections

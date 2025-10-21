@@ -36,7 +36,9 @@ export async function checkSupabaseConnection(): Promise<boolean> {
       return response.ok;
     }
   } catch (error) {
-    console.log('Connection check failed:', error);
+    if (__DEV__) {
+      console.log('Connection check failed:', error);
+    }
     return false;
   }
 }
@@ -45,6 +47,7 @@ export async function getConnectionStatus(): Promise<{
   supabase: boolean;
   internet: boolean;
   message: string;
+  isUsingProxy: boolean;
 }> {
   try {
     // Check general internet
@@ -61,25 +64,29 @@ export async function getConnectionStatus(): Promise<{
     
     let message = '';
     if (!internetCheck) {
-      message = 'No internet connection';
-    } else if (!supabaseCheck && !isUsingProxy) {
-      message = 'Cannot reach Supabase (network may be blocking it)';
+      message = 'We could not detect an internet connection. Check Wi-Fi or cellular and try again.';
+    } else if (!supabaseCheck && isUsingProxy) {
+      message = 'Cloudflare proxy is unavailable. Try another network or contact support for a backup route.';
+    } else if (!supabaseCheck) {
+      message = 'Cannot reach Supabase services. Toggle the in-app proxy or try a different network.';
     } else if (isUsingProxy) {
-      message = 'Connected via Cloudflare proxy (Dubai workaround)';
+      message = 'Connected via Cloudflare proxy for restricted networks.';
     } else {
-      message = 'All systems operational';
+      message = 'All systems operational.';
     }
     
     return {
       internet: internetCheck,
       supabase: supabaseCheck,
       message,
+      isUsingProxy,
     };
   } catch (error) {
     return {
       internet: false,
       supabase: false,
-      message: 'Connection check failed',
+      message: 'Connection check failed. Please retry in a moment.',
+      isUsingProxy: false,
     };
   }
 }

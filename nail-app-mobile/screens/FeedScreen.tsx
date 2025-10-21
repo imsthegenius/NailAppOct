@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   DeviceEventEmitter,
   Modal,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -385,17 +384,18 @@ export default function FeedScreen() {
         transparent
         onRequestClose={() => setSelectedLook(null)}
       >
-        <View style={styles.modalBackdrop}>
-          <TouchableWithoutFeedback onPress={() => setSelectedLook(null)}>
-            <View style={styles.modalBackdropTouchable} />
-          </TouchableWithoutFeedback>
-          {selectedLook ? (
-            <View style={styles.modalContent}>
-              <Image
-                source={{ uri: selectedLook.localTransformedImage ?? selectedLook.transformedImage }}
-                style={styles.modalImage}
-                resizeMode="contain"
-              />
+        {selectedLook ? (
+          <View style={styles.modalBackdrop}>
+            <Image
+              source={{ uri: selectedLook.localTransformedImage ?? selectedLook.transformedImage }}
+              style={styles.modalImageFull}
+              resizeMode="contain"
+            />
+            <LinearGradient
+              colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.75)']}
+              locations={[0, 1]}
+              style={styles.modalGradient}
+            >
               <View style={styles.modalMeta}>
                 <Text style={styles.modalTitle}>{selectedLook.colorName}</Text>
                 <Text style={styles.modalSubtitle}>
@@ -408,9 +408,18 @@ export default function FeedScreen() {
                   <Text style={styles.modalStatusError}>Upload failed — tap save again</Text>
                 )}
               </View>
-            </View>
-          ) : null}
-        </View>
+            </LinearGradient>
+            <SafeAreaView style={styles.modalSafeArea} pointerEvents="box-none">
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setSelectedLook(null)}
+                accessibilityLabel="Close full screen preview"
+              >
+                <Ionicons name="close" size={28} color="#fff" />
+              </TouchableOpacity>
+            </SafeAreaView>
+          </View>
+        ) : null}
       </Modal>
     </SafeAreaView>
   );
@@ -558,32 +567,23 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.82)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    position: 'relative',
   },
-  modalBackdropTouchable: {
+  modalImageFull: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalGradient: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  modalContent: {
-    width: width * 0.92,
-    borderRadius: 28,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 16,
-    alignItems: 'center',
-  },
-  modalImage: {
-    width: '100%',
-    height: width * 1.1,
-    borderRadius: 18,
-    marginBottom: 16,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 120,
+    justifyContent: 'flex-end',
   },
   modalMeta: {
-    width: '100%',
     alignItems: 'flex-start',
     gap: 6,
   },
@@ -607,5 +607,22 @@ const styles = StyleSheet.create({
     color: '#ff9aa5',
     fontSize: 13,
     fontWeight: '600',
+  },
+  modalSafeArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+  },
+  modalCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    marginTop: 8,
   },
 });

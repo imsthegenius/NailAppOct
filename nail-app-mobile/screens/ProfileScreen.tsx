@@ -7,6 +7,9 @@ import {
   SafeAreaView,
   ScrollView,
   StatusBar,
+  Linking,
+  Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -60,6 +63,27 @@ export default function ProfileScreen() {
     { icon: 'shield-checkmark-outline', label: 'Privacy' },
     { icon: 'help-circle-outline', label: 'Help & Support' },
   ];
+
+  const openManageSubscriptions = async () => {
+    const iosUrl = 'itms-apps://apps.apple.com/account/subscriptions';
+    const iosFallbackUrl = 'https://apps.apple.com/account/subscriptions';
+    const androidUrl = 'https://play.google.com/store/account/subscriptions';
+    const targetUrl = Platform.OS === 'ios' ? iosUrl : androidUrl;
+
+    try {
+      const canOpen = await Linking.canOpenURL(targetUrl);
+      const urlToOpen = canOpen ? targetUrl : Platform.OS === 'ios' ? iosFallbackUrl : androidUrl;
+      await Linking.openURL(urlToOpen);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Unable to open subscription management:', error);
+      }
+      Alert.alert(
+        'Unable to open',
+        'Please manage your subscription directly in the App Store settings.'
+      );
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -158,6 +182,27 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             ))}
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Subscription</Text>
+          <TouchableOpacity
+            style={styles.manageSubscriptionCard}
+            activeOpacity={0.88}
+            onPress={async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              await openManageSubscriptions();
+            }}
+          >
+            <View style={styles.manageIconWrap}>
+              <Ionicons name="card-outline" size={22} color="#fff" />
+            </View>
+            <View style={styles.manageTextWrap}>
+              <Text style={styles.manageTitle}>Manage Subscription</Text>
+              <Text style={styles.manageSubtitle}>Open the App Store to update or cancel billing.</Text>
+            </View>
+            <Ionicons name="open-outline" size={20} color="rgba(255,255,255,0.85)" />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.authSection}>
@@ -333,6 +378,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     fontWeight: '500',
+  },
+  manageSubscriptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  manageIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(231, 10, 90, 0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  manageTextWrap: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  manageTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  manageSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 2,
   },
   authSection: {
     marginTop: 32,

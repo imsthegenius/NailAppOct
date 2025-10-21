@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as FileSystem from 'expo-file-system';
 import { useSelectionStore } from '../lib/selectedData';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../App';
@@ -38,7 +39,9 @@ const getProcessingMessage = (progress: number, colorName: string, shapeName: st
 };
 
 export default function ProcessingScreen({ navigation, route }: Props) {
-  console.log('ProcessingScreen mounted with params:', route.params);
+  if (__DEV__) {
+    console.log('ProcessingScreen mounted with params:', route.params);
+  }
   
   const { imageUri, base64 } = route.params || {};
   
@@ -70,6 +73,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
     
     // Perform the actual transformation
     const performTransformation = async () => {
+      let resolvedBase64 = base64 ?? '';
       try {
         // Import the Gemini transformation functions
         const { transformNailsWithGemini, mockTransformNails, detectMimeType, isGeminiConfigured } = await import('../lib/geminiService');
@@ -92,25 +96,46 @@ export default function ProcessingScreen({ navigation, route }: Props) {
           });
         }, 200);
         
+        if (!resolvedBase64 && imageUri) {
+          try {
+            resolvedBase64 = await FileSystem.readAsStringAsync(imageUri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+          } catch (fsError) {
+            if (__DEV__) {
+              console.error('Failed to read image as base64 for processing:', fsError);
+            }
+            resolvedBase64 = '';
+          }
+        }
+
+        if (!resolvedBase64) {
+          throw new Error('Missing base64 image data');
+        }
+
         // Detect MIME type from base64
-        const mimeType = detectMimeType(base64 || '');
+        const mimeType = detectMimeType(resolvedBase64);
         
         // Try to use real Gemini API, fallback to mock if not configured or on error
         let transformedImage: string;
         
         // Log the exact color being sent
-        console.log('=== COLOR DATA VERIFICATION ===');
-        console.log('Selected Color Object:', selectedColor);
-        console.log('Color Name:', selectedColor?.name);
-        console.log('Color Hex:', selectedColor?.hex);
-        console.log('==============================');
+        if (__DEV__) {
+          console.log('=== COLOR DATA VERIFICATION ===');
+          console.log('Selected Color Object:', selectedColor);
+          console.log('Color Name:', selectedColor?.name);
+          console.log('Color Hex:', selectedColor?.hex);
+          console.log('==============================');
+        }
         
         try {
           if (isGeminiConfigured()) {
             // Use real Gemini API for image generation
-            console.log('Using Gemini API for nail transformation...');
+            if (__DEV__) {
+              console.log('Using Gemini API for nail transformation...');
+            }
             transformedImage = await transformNailsWithGemini(
-              base64 || '',
+              resolvedBase64,
               mimeType,
               selectedColor?.hex || '#FF69B4',
               selectedColor?.name || 'Pink',
@@ -127,9 +152,11 @@ export default function ProcessingScreen({ navigation, route }: Props) {
             );
           } else {
             // Use mock if API key not configured
-            console.log('Gemini API not configured or proxy missing, using mock transformation');
+            if (__DEV__) {
+              console.log('Gemini API not configured or proxy missing, using mock transformation');
+            }
             transformedImage = await mockTransformNails(
-              base64 || '',
+              resolvedBase64,
               mimeType,
               selectedColor?.hex || '#FF69B4',
               selectedColor?.name || 'Pink',
@@ -149,7 +176,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
           console.error('Gemini API failed, falling back to mock:', apiError);
           // Fallback to mock on error
           transformedImage = await mockTransformNails(
-            base64 || '',
+            resolvedBase64,
             mimeType,
             selectedColor?.hex || '#FF69B4',
             selectedColor?.name || 'Pink',
@@ -176,7 +203,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
             imageUri: transformedImage, // Use the transformed image
             originalImageUri: imageUri,
             transformedBase64: transformedImage,
-            originalBase64: base64 || null,
+            originalBase64: resolvedBase64 || null,
           });
         }, 500);
         
@@ -186,8 +213,8 @@ export default function ProcessingScreen({ navigation, route }: Props) {
         navigation.replace('Results', { 
           imageUri: imageUri,
           originalImageUri: imageUri,
-          transformedBase64: base64 || null,
-          originalBase64: base64 || null,
+          transformedBase64: resolvedBase64 || null,
+          originalBase64: resolvedBase64 || null,
         });
       }
     };

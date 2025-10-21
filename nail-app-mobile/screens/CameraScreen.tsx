@@ -53,13 +53,17 @@ export default function CameraScreen({ navigation }: Props) {
 
   // Debug log on mount
   useEffect(() => {
-    console.log('CameraScreen mounted');
-    console.log('Current selected color:', selectedColor);
-    console.log('Current selected shape:', selectedShape);
-    console.log('Current selected length:', selectedLength);
+    if (__DEV__) {
+      console.log('CameraScreen mounted');
+      console.log('Current selected color:', selectedColor);
+      console.log('Current selected shape:', selectedShape);
+      console.log('Current selected length:', selectedLength);
+    }
     
     return () => {
-      console.log('CameraScreen unmounting');
+      if (__DEV__) {
+        console.log('CameraScreen unmounting');
+      }
     };
   }, []);
 
@@ -125,8 +129,7 @@ export default function CameraScreen({ navigation }: Props) {
           } else {
             // Store photo for later use and navigate to Design screen
             await AsyncStorage.setItem('pendingPhoto', JSON.stringify({
-              imageUri: photo.uri,
-              base64: photo.base64
+              imageUri: photo.uri
             }));
             
             Alert.alert(
@@ -187,8 +190,7 @@ export default function CameraScreen({ navigation }: Props) {
         } else {
           // Store photo for later use and navigate to Design screen
           await AsyncStorage.setItem('pendingPhoto', JSON.stringify({
-            imageUri: asset.uri,
-            base64: asset.base64
+            imageUri: asset.uri
           }));
           
           // Add delay to prevent crash
@@ -210,7 +212,9 @@ export default function CameraScreen({ navigation }: Props) {
   };
 
   const toggleCameraFacing = () => {
-    console.log('Toggle camera facing pressed');
+    if (__DEV__) {
+      console.log('Toggle camera facing pressed');
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setFacing(current => (current === 'back' ? 'front' : 'back'));
   };
@@ -265,7 +269,9 @@ export default function CameraScreen({ navigation }: Props) {
           ref={cameraRef}
           active={shouldRenderCamera}
           onCameraReady={() => {
-            console.log('Camera is ready');
+            if (__DEV__) {
+              console.log('Camera is ready');
+            }
             setIsCameraReady(true);
           }}
           onMountError={(error: any) => {
