@@ -122,9 +122,9 @@ export const LiquidGlassTabBar: React.FC<LiquidGlassTabBarProps> = ({
                   <Ionicons
                     name={tab.icon}
                     size={24}
-                    color={isActive ? '#FF69B4' : theme.textSecondary}
+                    color={isActive ? theme.accent : theme.textSecondary}
                   />
-                  <Text style={[styles.tabLabel, { color: isActive ? '#FF69B4' : theme.textSecondary }, isActive && styles.activeTabLabel]}>
+                  <Text style={[styles.tabLabel, { color: isActive ? theme.accent : theme.textSecondary }, isActive && styles.activeTabLabel]}>
                     {tab.label}
                   </Text>
                 </TouchableOpacity>
@@ -171,9 +171,9 @@ export const LiquidGlassTabBar: React.FC<LiquidGlassTabBarProps> = ({
                   <Ionicons
                     name={tab.icon}
                     size={24}
-                    color={isActive ? '#FF69B4' : theme.textSecondary}
+                    color={isActive ? theme.accent : theme.textSecondary}
                   />
-                  <Text style={[styles.tabLabel, { color: isActive ? '#FF69B4' : theme.textSecondary }, isActive && styles.activeTabLabel]}>
+                  <Text style={[styles.tabLabel, { color: isActive ? theme.accent : theme.textSecondary }, isActive && styles.activeTabLabel]}>
                     {tab.label}
                   </Text>
                 </TouchableOpacity>
@@ -244,7 +244,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   activeTabLabel: {
-    color: '#FF69B4',
     fontWeight: '600',
   },
   highlightOverlay: {

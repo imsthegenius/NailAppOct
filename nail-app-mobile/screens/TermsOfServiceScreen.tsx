@@ -4,13 +4,14 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../App';
+import type { RootStackParamList } from '../navigation/types';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BRAND_COLORS } from '../src/theme/colors';
 
 type TermsOfServiceScreenNavigationProp = StackNavigationProp<RootStackParamList, 'TermsOfService'>;
 
@@ -210,7 +211,7 @@ const styles = StyleSheet.create({
   },
   link: {
     fontSize: 16,
-    color: '#FF69B4',
+    color: BRAND_COLORS.accent,
     textDecorationLine: 'underline',
     marginBottom: 15,
   },

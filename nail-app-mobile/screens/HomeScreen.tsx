@@ -6,13 +6,14 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
-  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../App';
+import type { RootStackParamList } from '../navigation/types';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BRAND_COLORS } from '../src/theme/colors';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -55,7 +56,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <LinearGradient
-      colors={['#FF1493', '#FF69B4']}
+      colors={[BRAND_COLORS.accentLight, BRAND_COLORS.accent]}
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signUpText: {
-    color: '#FF1493',
+    color: BRAND_COLORS.accent,
     fontSize: 17,
     fontWeight: '700',
   },

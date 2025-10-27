@@ -5,25 +5,18 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  SafeAreaView,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../App';
+import type { MainStackParamList, CompareLookParam } from '../navigation/types';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BRAND_COLORS } from '../src/theme/colors';
 
-type CompareScreenNavigationProp = StackNavigationProp<RootStackParamList, 'CompareScreen'>;
+type CompareScreenNavigationProp = StackNavigationProp<MainStackParamList, 'CompareScreen'>;
 
-type SavedLook = {
-  id: string;
-  originalImage: string;
-  transformedImage: string;
-  colorName: string;
-  colorHex: string;
-  shapeName: string;
-  createdAt: string;
-};
+type SavedLook = CompareLookParam;
 
 type Props = {
   navigation: CompareScreenNavigationProp;
@@ -194,12 +187,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#FF69B4',
+    borderColor: BRAND_COLORS.accent,
   },
   vsText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FF69B4',
+    color: BRAND_COLORS.accent,
   },
   detailsContainer: {
     flexDirection: 'row',

@@ -6,21 +6,21 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
-  SafeAreaView,
   Dimensions,
   Alert,
   ActivityIndicator,
   Modal,
-  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../App';
+import type { RootStackParamList } from '../navigation/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { getUserLooks } from '../lib/supabaseStorage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 type MyLooksScreenNavigationProp = StackNavigationProp<RootStackParamList, 'MyLooks'>;
 
@@ -193,7 +193,7 @@ export default function MyLooksScreen({ navigation }: Props) {
       </Text>
       <TouchableOpacity 
         style={styles.emptyStateButton}
-        onPress={() => navigation.navigate('ColorSelection' as any)}
+        onPress={() => navigation.navigate('Main', { screen: 'Design' })}
       >
         <Text style={styles.emptyStateButtonText}>Create Your First Look</Text>
       </TouchableOpacity>
@@ -202,7 +202,7 @@ export default function MyLooksScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar style="light" />
       <LinearGradient
         colors={['#2A0B20', '#E70A5A']}
         start={{ x: 0.1, y: 0.9 }}

@@ -211,7 +211,7 @@ Proprietary - All Rights Reserved
 - Keychain storage
 - Privacy policy
 - Account deletion
-- Social login (Apple & Google)
+- Social login (Sign in with Apple)
 
 **Phase 3** 📅 - Enhancements (Planned)
 - Face ID/Touch ID

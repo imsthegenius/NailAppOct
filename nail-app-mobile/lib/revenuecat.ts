@@ -115,7 +115,10 @@ export async function restorePurchases(): Promise<CustomerInfo | null> {
 
 export function isPremium(customerInfo: CustomerInfo | null): boolean {
   if (!customerInfo) return false;
-  return !!customerInfo.entitlements.active[ENTITLEMENT_ID];
+  const active = customerInfo.entitlements.active || {};
+  if (active[ENTITLEMENT_ID]) return true;
+  // Fallback: if any entitlement is active, treat as premium
+  return Object.keys(active).length > 0;
 }
 
 function planFromProductId(productId?: string): 'premium_monthly' | 'premium_yearly' | 'free' {
@@ -134,11 +137,12 @@ async function syncSubscriptionToSupabase(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const Purchases = deps.api;
-    const customerInfo = info ?? await Purchases.getCustomerInfo();
-    const activeEntitlement = customerInfo.entitlements.active[ENTITLEMENT_ID];
-    const active = !!activeEntitlement;
-    const productId = activeEntitlement?.productIdentifier;
+  const Purchases = deps.api;
+  const customerInfo = info ?? await Purchases.getCustomerInfo();
+  const activeMap = customerInfo.entitlements.active || {} as Record<string, { productIdentifier?: string }>;
+  const selectedEntitlement = activeMap[ENTITLEMENT_ID] ?? Object.values(activeMap)[0];
+  const active = !!selectedEntitlement;
+  const productId = selectedEntitlement?.productIdentifier;
     const status = active ? planFromProductId(productId) : 'free';
 
     await supabase

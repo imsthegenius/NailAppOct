@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   Alert,
   TextInput,
@@ -16,11 +15,17 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../App';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import type { MainStackParamList, RootStackParamList } from '../navigation/types';
 import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BRAND_COLORS } from '../src/theme/colors';
 
-type DeleteAccountScreenNavigationProp = StackNavigationProp<RootStackParamList, 'DeleteAccount'>;
+type DeleteAccountScreenNavigationProp = CompositeNavigationProp<
+  StackNavigationProp<MainStackParamList, 'DeleteAccount'>,
+  StackNavigationProp<RootStackParamList>
+>;
 
 type Props = {
   navigation: DeleteAccountScreenNavigationProp;
@@ -93,7 +98,7 @@ export default function DeleteAccountScreen({ navigation }: Props) {
       
       if (!session) {
         Alert.alert('Session Expired', 'Please log in again to delete your account.');
-        navigation.navigate('Login' as any);
+        navigation.navigate('Login');
         setIsDeleting(false);
         return;
       }
@@ -505,10 +510,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: '#FF69B4',
+    borderColor: BRAND_COLORS.accent,
   },
   supportButtonText: {
-    color: '#FF69B4',
+    color: BRAND_COLORS.accent,
     fontSize: 16,
     fontWeight: '600',
   },

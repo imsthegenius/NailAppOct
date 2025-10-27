@@ -12,9 +12,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system';
 import { useSelectionStore } from '../lib/selectedData';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../App';
+import type { MainStackParamList } from '../navigation/types';
+import { useThemeColors } from '../hooks/useColorScheme';
 
-type ProcessingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Processing'>;
+type ProcessingScreenNavigationProp = StackNavigationProp<MainStackParamList, 'Processing'>;
 
 type Props = {
   navigation: ProcessingScreenNavigationProp;
@@ -66,6 +67,8 @@ export default function ProcessingScreen({ navigation, route }: Props) {
   const selectedColor = useSelectionStore((state) => state.selectedColor);
   const selectedShape = useSelectionStore((state) => state.selectedShape);
   const selectedLength = useSelectionStore((state) => state.selectedLength);
+  const theme = useThemeColors();
+  const accentColor = selectedColor?.hex || theme.accent;
 
   useEffect(() => {
     // Start animations
@@ -137,7 +140,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
             transformedImage = await transformNailsWithGemini(
               resolvedBase64,
               mimeType,
-              selectedColor?.hex || '#FF69B4',
+              accentColor,
               selectedColor?.name || 'Pink',
               selectedShape?.name || 'Round',
               selectedLength?.name || 'Medium',
@@ -158,7 +161,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
             transformedImage = await mockTransformNails(
               resolvedBase64,
               mimeType,
-              selectedColor?.hex || '#FF69B4',
+              accentColor,
               selectedColor?.name || 'Pink',
               selectedShape?.name || 'Round',
               selectedLength?.name || 'Medium',
@@ -178,7 +181,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
           transformedImage = await mockTransformNails(
             resolvedBase64,
             mimeType,
-            selectedColor?.hex || '#FF69B4',
+            accentColor,
             selectedColor?.name || 'Pink',
             selectedShape?.name || 'Round',
             selectedLength?.name || 'Medium',
@@ -352,7 +355,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
         ]}
       >
         <LinearGradient
-          colors={['transparent', selectedColor?.hex || '#FF69B4', 'transparent']}
+          colors={['transparent', accentColor, 'transparent']}
           style={styles.scannerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
@@ -364,7 +367,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
         {/* Progress circle */}
         <Animated.View style={[styles.progressContainer, { transform: [{ scale: pulseAnim }] }]}>
           <View style={styles.progressCircle}>
-            <View style={[styles.progressCircleBackground, { borderColor: selectedColor?.hex || '#FF69B4' }]} />
+            <View style={[styles.progressCircleBackground, { borderColor: accentColor }]} />
             <View style={styles.progressCircleFill}>
               <Text style={styles.progressText}>{Math.round(progress)}%</Text>
             </View>
@@ -378,7 +381,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
 
         {/* Style info */}
         <Animated.View style={[styles.styleInfo, { opacity: fadeAnim }]}>
-          <View style={[styles.colorChip, { backgroundColor: selectedColor?.hex || '#FF69B4' }]} />
+          <View style={[styles.colorChip, { backgroundColor: accentColor }]} />
           <Text style={styles.styleText}>
             {selectedColor?.name || 'Color'} • {selectedShape?.name || 'Shape'}
           </Text>

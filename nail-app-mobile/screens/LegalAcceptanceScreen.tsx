@@ -1,20 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
-  StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import type { RootStackParamList } from '../App';
+import type { RootStackParamList } from '../navigation/types';
 import {
   acceptCurrentLegalDocuments,
   consumePendingFullName,
@@ -23,6 +21,8 @@ import {
   markOnboardingComplete,
   type LegalAcceptanceStatus,
 } from '../lib/onboardingFlow';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 const CARD_BACKGROUND = 'rgba(255, 255, 255, 0.2)';
 
@@ -105,7 +105,7 @@ export default function LegalAcceptanceScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar style="light" />
       <LinearGradient
         colors={['#2A0B20', '#E70A5A']}
         start={{ x: 0, y: 1 }}

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -10,14 +9,13 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  StatusBar,
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../App';
+import type { RootStackParamList } from '../navigation/types';
 import { supabase } from '../lib/supabase';
 import { supabaseProxy, testProxyConnection } from '../lib/supabaseProxy';
 import { signUpWithXHR } from '../lib/supabaseXHR';
@@ -26,6 +24,8 @@ import {
   resolvePostAuthDestination,
   storePendingFullName,
 } from '../lib/onboardingFlow';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 const CARD_BACKGROUND = 'rgba(255, 255, 255, 0.18)';
 
@@ -214,11 +214,11 @@ export default function SignupScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar style="light" />
       <LinearGradient
-        colors={['#2A0B20', '#E70A5A']}
-        start={{ x: 0.1, y: 0.9 }}
-        end={{ x: 0.9, y: 0.1 }}
+        colors={screenGradients.auth}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
@@ -227,7 +227,11 @@ export default function SignupScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.replace('AuthLanding'))}
+            activeOpacity={0.8}
+          >
             <Ionicons name="chevron-back" size={26} color="#fff" />
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
@@ -297,19 +301,28 @@ export default function SignupScreen({ navigation }: Props) {
               onPress={handleSignup}
               disabled={loading}
               activeOpacity={0.92}
+              accessibilityRole="button"
+              accessibilityLabel="Create account"
+              accessibilityHint="Submits your details to create a NailGlow account."
             >
               {loading ? (
                 <ActivityIndicator color="#2A0B20" />
               ) : (
-                <Text style={styles.primaryButtonText}>Sign Up</Text>
+                <Text style={styles.primaryButtonText}>Create Account</Text>
               )}
             </TouchableOpacity>
           </View>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account?</Text>
-            <TouchableOpacity onPress={() => navigation.replace('Login')} activeOpacity={0.8}>
-              <Text style={styles.footerLink}>Log in</Text>
+            <TouchableOpacity
+              onPress={() => navigation.replace('Login')}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Log in"
+              accessibilityHint="Switch to the login form to use an existing account."
+            >
+              <Text style={styles.footerLink}>Log In</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -429,3 +442,4 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 });
+import { screenGradients } from '../theme/gradients';

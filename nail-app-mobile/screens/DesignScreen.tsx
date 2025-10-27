@@ -11,10 +11,13 @@ import {
   View,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets, SafeAreaView, EdgeInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,12 +33,10 @@ import {
   useSelectionStore,
 } from '../lib/selectedData';
 
-import {
-  CategorySummary,
-  ColorCatalogEntry,
-  fetchCategorySummaries,
-  fetchColorCatalog,
-} from '../src/services/colorCatalog';
+import type { CategorySummary, ColorCatalogEntry } from '../src/services/colorCatalog';
+import { fetchCategorySummaries, fetchColorCatalog } from '../src/services/colorCatalog';
+import type { MainStackParamList } from '../navigation/types';
+import { spacing, radii } from '../src/theme/tokens';
 
 const { width } = Dimensions.get('window');
 
@@ -148,8 +149,8 @@ function computeLengthForShape(shapeId: string) {
 }
 
 const DesignScreen = () => {
-  const navigation = useNavigation<any>();
-  const route = useRoute<any>();
+  const navigation = useNavigation<StackNavigationProp<MainStackParamList, 'Design'>>();
+  const route = useRoute<RouteProp<MainStackParamList, 'Design'>>();
   const theme = useThemeColors();
   const { status } = useSubscriptionStatus();
   const insets = useSafeAreaInsets();
@@ -174,6 +175,8 @@ const DesignScreen = () => {
   const [initialising, setInitialising] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingPhoto, setPendingPhoto] = useState<{ imageUri: string; base64?: string } | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -181,6 +184,13 @@ const DesignScreen = () => {
   const categoryListRef = useRef<FlatList<CategoryListItem> | null>(null);
 
   const isTrendingActive = activePrimaryFilter === 'trending';
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setAppliedSearch(searchTerm.trim());
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   const effectiveBrand = useMemo(() => {
     if (activePrimaryFilter === 'all' || isTrendingActive) {
@@ -205,6 +215,7 @@ const DesignScreen = () => {
       category: effectiveCategory,
       hasSwatch,
       isTrending: isTrendingActive,
+      search: appliedSearch || undefined,
     }),
     [
       effectiveBrand,
@@ -214,6 +225,7 @@ const DesignScreen = () => {
       effectiveCategory,
       hasSwatch,
       isTrendingActive,
+      appliedSearch,
     ]
   );
 
@@ -366,10 +378,24 @@ const DesignScreen = () => {
     updateSelectedColor(buildSelectedColor(entry));
   };
 
-  const handleShapeSelect = (shape: { id: string; name: string; icon?: string }) => {
+  const handleShapeSelect = async (shape: { id: string; name: string; icon?: string }) => {
     if (!isPremium && shape.id !== 'almond' && shape.id !== 'keep') {
-      navigation.navigate('Upgrade');
-      return;
+      // Double-check RevenueCat entitlement in case Supabase sync is lagging
+      try {
+        const mod: any = await import('react-native-purchases');
+        const Purchases = mod?.default ?? mod;
+        const ENTITLEMENT_ID = process.env.EXPO_PUBLIC_RC_ENTITLEMENT_ID ?? 'premium';
+        const info = await Purchases.getCustomerInfo();
+        const activeMap = info?.entitlements?.active || {};
+        const active = !!(activeMap?.[ENTITLEMENT_ID] ?? Object.values(activeMap)[0]);
+        if (!active) {
+          navigation.navigate('Upgrade');
+          return;
+        }
+      } catch {
+        navigation.navigate('Upgrade');
+        return;
+      }
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const length = computeLengthForShape(shape.id);
@@ -564,6 +590,8 @@ const DesignScreen = () => {
         onCategoryClear={handleCategoryClear}
         categoryListRef={categoryListRef}
         scrollResetKey={categoryScrollResetKey}
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
       />
     ),
     [
@@ -576,6 +604,7 @@ const DesignScreen = () => {
       handleCategorySelect,
       handleCategoryClear,
       categoryScrollResetKey,
+      searchTerm,
     ]
   );
 
@@ -765,6 +794,8 @@ type DesignListHeaderProps = {
   onCategoryClear: () => void;
   categoryListRef: React.RefObject<FlatList<CategoryListItem> | null>;
   scrollResetKey: string;
+  searchTerm: string;
+  onSearchTermChange: (value: string) => void;
 };
 
 const DesignListHeader = React.memo((props: DesignListHeaderProps) => {
@@ -779,7 +810,11 @@ const DesignListHeader = React.memo((props: DesignListHeaderProps) => {
     onCategoryClear,
     categoryListRef,
     scrollResetKey,
+    searchTerm,
+    onSearchTermChange,
   } = props;
+
+  const theme = useThemeColors();
 
   const primaryContainerWidthRef = useRef(0);
   const categoryContainerWidthRef = useRef(0);
@@ -853,6 +888,42 @@ const DesignListHeader = React.memo((props: DesignListHeaderProps) => {
     >
       <View style={[styles.heroHeader, { paddingTop: 0 }]}>
         <Text style={styles.heroTitleText}>Design</Text>
+
+        <NativeLiquidGlass
+          style={styles.searchContainer}
+          intensity={Math.max(theme.glassIntensity - 4, 40)}
+          tint={theme.glassTint}
+          cornerRadius={radii.lg}
+          borderWidth={0.6}
+        >
+          <View style={styles.searchInner}>
+            <Ionicons name="search" size={18} color="rgba(60,60,67,0.6)" />
+            <TextInput
+              value={searchTerm}
+              onChangeText={onSearchTermChange}
+              placeholder="Search shades or collections"
+              placeholderTextColor="rgba(60,60,67,0.35)"
+              style={[styles.searchInput, { color: theme.text }]}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+              accessibilityLabel="Search colours"
+              accessibilityHint="Filters the catalogue by the text you enter."
+            />
+            {searchTerm.length > 0 && (
+              <TouchableOpacity
+                onPress={() => onSearchTermChange('')}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+                accessibilityHint="Clears the current search term"
+                style={styles.searchClearButton}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle" size={18} color="rgba(60,60,67,0.45)" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </NativeLiquidGlass>
 
         <View style={[styles.horizontalScrollContainer, primaryPeekStyle]}>
           <ScrollView
@@ -1017,6 +1088,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#E65A8F',
     letterSpacing: -0.4,
+  },
+  searchContainer: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.lg,
+  },
+  searchInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchInput: {
+    flex: 1,
+    paddingLeft: spacing.xs,
+    fontSize: 15,
+  },
+  searchClearButton: {
+    marginLeft: spacing.xs,
+    paddingVertical: spacing.xs,
   },
   primaryFiltersScroller: {
     paddingTop: 14,

@@ -129,7 +129,7 @@ export default function SplashScreen({ navigation }: any) {
         style={[styles.logoContainer, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}
       >
         <Image
-          source={require('../assets/images/Naild Logo.png')}
+          source={require('../assets/images/NailGlowLogo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: width * 0.78, // 305/393 ≈ 0.78
-    height: height * 0.17, // 142/852 ≈ 0.17
+    width: width * 0.6,
+    height: height * 0.12,
   },
 });

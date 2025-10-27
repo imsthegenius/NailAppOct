@@ -1,59 +1,48 @@
-// Brand Colors for Nail App
+import { glass, gradients, palette } from './tokens';
+
 export const BRAND_COLORS = {
-  // Background
-  background: '#f6f4f0',
-  
-  // Primary Colors
-  primary: '#ffa1ba',    // Main brand pink
-  primaryDark: '#ff8aa6',
-  primaryLight: '#ffc5d6',
-  
-  // Accent Colors
-  accent: '#e70a5a',     // Bright accent pink
-  accentDark: '#c3084e',
-  accentLight: '#ff3377',
-  
-  // Text Colors
+  background: palette.background,
+  backgroundElevated: palette.backgroundElevated,
+  primary: palette.primary,
+  primaryDark: palette.primaryDark,
+  primaryLight: palette.primaryLight,
+  accent: palette.accent,
+  accentDark: palette.accentDark,
+  accentLight: palette.accentLight,
   text: {
-    primary: '#333333',
-    secondary: '#666666',
-    light: '#999999',
+    primary: palette.textPrimary,
+    secondary: palette.textSecondary,
+    light: palette.textTertiary,
     onDark: '#ffffff',
     onPrimary: '#ffffff',
     onAccent: '#ffffff',
   },
-  
-  // UI Colors
   ui: {
-    card: '#ffffff',
+    card: palette.backgroundElevated,
     border: 'rgba(0, 0, 0, 0.1)',
     shadow: 'rgba(0, 0, 0, 0.1)',
     overlay: 'rgba(0, 0, 0, 0.5)',
   },
-  
-  // Status Colors
-  success: '#4caf50',
-  warning: '#ff9800',
-  error: '#f44336',
-  info: '#2196f3',
+  status: {
+    success: '#4caf50',
+    warning: '#ff9800',
+    error: '#f44336',
+    info: '#2196f3',
+  },
 };
 
-// Glassmorphism Colors (updated with brand colors)
 export const GLASS_COLORS = {
-  light: 'rgba(255, 255, 255, 0.1)',
-  dark: 'rgba(0, 0, 0, 0.2)',
-  border: 'rgba(255, 255, 255, 0.18)',
-  primary: 'rgba(255, 161, 186, 0.2)',
-  accent: 'rgba(231, 10, 90, 0.2)',
+  light: glass.layers.base,
+  dark: 'rgba(0, 0, 0, 0.32)',
+  border: glass.border,
+  highlight: glass.highlight,
 };
 
-// Gradient combinations
 export const GRADIENTS = {
-  primary: [BRAND_COLORS.primary, BRAND_COLORS.primaryDark],
-  accent: [BRAND_COLORS.accent, BRAND_COLORS.accentDark],
-  primaryToAccent: [BRAND_COLORS.primary, BRAND_COLORS.accent],
-  lightGradient: ['#ffffff', BRAND_COLORS.background],
+  primary: gradients.surfaces.buttonPrimary,
+  accent: gradients.onboarding.preview,
+  primaryToAccent: [palette.primary, palette.accent] as const,
+  lightGradient: ['#ffffff', palette.background] as const,
 };
 
-// Default export
 export default BRAND_COLORS;

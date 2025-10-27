@@ -17,6 +17,30 @@ export function useSubscriptionStatus() {
 
     let mounted = true;
 
+    const planFromProductId = (productId?: string): SubscriptionStatus => {
+      if (!productId) return 'free';
+      const id = productId.toLowerCase();
+      if (id.includes('year') || id.includes('annual')) return 'premium_yearly';
+      if (id.includes('month')) return 'premium_monthly';
+      return 'premium_monthly';
+    };
+
+    const fetchFromRevenueCat = async (): Promise<SubscriptionStatus | null> => {
+      try {
+        // lazy import to avoid crashing in environments without the native module
+        const mod: any = await import('react-native-purchases');
+        const Purchases = mod?.default ?? mod;
+        const ENTITLEMENT_ID = process.env.EXPO_PUBLIC_RC_ENTITLEMENT_ID ?? 'premium';
+        const info = await Purchases.getCustomerInfo();
+        const activeMap = info?.entitlements?.active || {};
+        const entitlement = activeMap?.[ENTITLEMENT_ID] ?? Object.values(activeMap)[0];
+        if (entitlement) return planFromProductId(entitlement.productIdentifier);
+        return 'free';
+      } catch {
+        return null;
+      }
+    };
+
     const fetchStatus = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -28,17 +52,18 @@ export function useSubscriptionStatus() {
           return;
         }
 
-        const { data, error } = await supabase
+        const [{ data, error }, rcStatus] = await Promise.all([
+          supabase
           .from('users')
           .select('subscription_status')
           .eq('id', user.id)
-          .single();
+          .single(),
+          fetchFromRevenueCat(),
+        ]);
 
-        if (!error && data?.subscription_status) {
-          if (mounted) setStatus(data.subscription_status as SubscriptionStatus);
-        } else if (mounted) {
-          setStatus('free');
-        }
+        const supaStatus = !error && data?.subscription_status ? (data.subscription_status as SubscriptionStatus) : 'free';
+        const effective = (rcStatus && rcStatus !== 'free') ? rcStatus : supaStatus;
+        if (mounted) setStatus(effective);
       } catch (err) {
         if (mounted) {
           setStatus('free');
@@ -54,9 +79,29 @@ export function useSubscriptionStatus() {
       fetchStatus();
     });
 
+    // Listen to RC customer info updates for immediate UI refresh after purchase
+    let removeRcListener: (() => void) | null = null;
+    (async () => {
+      try {
+        const mod: any = await import('react-native-purchases');
+        const Purchases = mod?.default ?? mod;
+        const listener = Purchases.addCustomerInfoUpdateListener(async () => {
+          if (!mounted) return;
+          const rc = await fetchFromRevenueCat();
+          if (rc && rc !== 'free') setStatus(rc);
+        });
+        removeRcListener = () => Purchases.removeCustomerInfoUpdateListener(listener);
+      } catch {
+        // ignore
+      }
+    })();
+
     return () => {
       mounted = false;
       authListener.subscription.unsubscribe();
+      try {
+        removeRcListener?.();
+      } catch {}
     };
   }, []);
 

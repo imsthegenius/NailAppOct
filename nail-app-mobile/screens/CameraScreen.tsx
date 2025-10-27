@@ -15,18 +15,19 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../App';
+import type { MainStackParamList } from '../navigation/types';
 import { useIsFocused } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import { LiquidGlassTabBar } from '../components/ui/LiquidGlassTabBar';
 import { GlassmorphicView } from '../components/ui/GlassmorphicView';
 import { NativeLiquidGlass } from '../components/ui/NativeLiquidGlass';
 import { useSelectionStore } from '../lib/selectedData';
+import { BRAND_COLORS } from '../src/theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
-type CameraScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Camera'>;
+type CameraScreenNavigationProp = StackNavigationProp<MainStackParamList, 'Camera'>;
 
 type Props = {
   navigation: CameraScreenNavigationProp;
@@ -121,7 +122,7 @@ export default function CameraScreen({ navigation }: Props) {
           if (selectedColor && selectedShape) {
             // Add delay to prevent race condition crash
             setTimeout(() => {
-              navigation.navigate('Processing' as any, { 
+              navigation.navigate('Processing', { 
                 imageUri: photo.uri,
                 base64: photo.base64 
               });
@@ -141,7 +142,7 @@ export default function CameraScreen({ navigation }: Props) {
                   onPress: () => {
                     // Add delay to prevent crash
                     setTimeout(() => {
-                      navigation.navigate('Design' as any, { 
+                      navigation.navigate('Design', { 
                         fromCamera: true,
                         photoData: { 
                           imageUri: photo.uri,
@@ -182,7 +183,7 @@ export default function CameraScreen({ navigation }: Props) {
         if (selectedColor && selectedShape) {
           // Add delay to prevent crash
           setTimeout(() => {
-            navigation.navigate('Processing' as any, { 
+            navigation.navigate('Processing', { 
               imageUri: asset.uri,
               base64: asset.base64 
             });
@@ -195,7 +196,7 @@ export default function CameraScreen({ navigation }: Props) {
           
           // Add delay to prevent crash
           setTimeout(() => {
-            navigation.navigate('Design' as any, { 
+            navigation.navigate('Design', { 
               fromCamera: true,
               photoData: { 
                 imageUri: asset.uri,
@@ -219,11 +220,11 @@ export default function CameraScreen({ navigation }: Props) {
     setFacing(current => (current === 'back' ? 'front' : 'back'));
   };
 
-  const handleTabPress = (route: string) => {
+  const handleTabPress = (route: keyof MainStackParamList) => {
     if (route === 'Design') {
-      navigation.navigate('Design' as any);
+      navigation.navigate('Design');
     } else if (route === 'Feed') {
-      navigation.navigate('Feed' as any);
+      navigation.navigate('Feed');
     }
     // Camera is current screen
   };
@@ -373,7 +374,7 @@ export default function CameraScreen({ navigation }: Props) {
             {/* Design Option */}
             <TouchableOpacity 
               style={styles.pillOption}
-              onPress={() => navigation.navigate('Design' as any)}
+              onPress={() => navigation.navigate('Design')}
               activeOpacity={0.7}
             >
               <View style={styles.pillOptionContent}>
@@ -419,7 +420,7 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   permissionButton: {
-    backgroundColor: '#FF69B4',
+    backgroundColor: BRAND_COLORS.accent,
     padding: 15,
     borderRadius: 10,
     marginHorizontal: 20,
@@ -454,7 +455,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.18)',
     justifyContent: 'center',
     alignItems: 'center',
-    backdropFilter: 'blur(10px)',
   },
   buttonLabel: {
     color: 'white',

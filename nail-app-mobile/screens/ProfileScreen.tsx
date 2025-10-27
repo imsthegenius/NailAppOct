@@ -4,22 +4,33 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
-  StatusBar,
   Linking,
   Platform,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { supabase } from '../lib/supabase';
+import { GlassmorphicView } from '../components/ui/GlassmorphicView';
+import { screenGradients, surfaceGradients, overlayShapes } from '../theme/gradients';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import type { MainStackParamList } from '../navigation/types';
+
+const WINDOW_DIMENSIONS = Dimensions.get('window');
+const WINDOW_WIDTH = WINDOW_DIMENSIONS.width;
+const creamBase = '#F6F4F0';
+const accentPink = '#C11961';
+const accentPinkLight = '#FF8AB8';
 
 export default function ProfileScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<StackNavigationProp<MainStackParamList, 'Profile'>>();
   const { status } = useSubscriptionStatus();
   const isPremium = status !== 'free';
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -51,17 +62,30 @@ export default function ProfileScreen() {
     // Placeholder for future routing
   };
 
-  const menuItemsPrimary = [
+  const handleDeleteAccount = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    navigation.navigate('DeleteAccount');
+  };
+
+  type MenuItem = {
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    onPress?: () => void;
+    variant?: 'default' | 'destructive';
+  };
+
+  const menuItemsPrimary: MenuItem[] = [
     { icon: 'bookmark-outline', label: 'Saved Collections' },
     { icon: 'color-palette-outline', label: 'Style Preferences' },
     { icon: 'time-outline', label: 'Recently Used Colors' },
     { icon: 'share-social-outline', label: 'Share Profile' },
   ];
 
-  const menuItemsSecondary = [
+  const menuItemsSecondary: MenuItem[] = [
     { icon: 'notifications-outline', label: 'Notifications' },
     { icon: 'shield-checkmark-outline', label: 'Privacy' },
     { icon: 'help-circle-outline', label: 'Help & Support' },
+    { icon: 'trash-outline', label: 'Delete Account', onPress: handleDeleteAccount, variant: 'destructive' },
   ];
 
   const openManageSubscriptions = async () => {
@@ -87,29 +111,34 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar style="dark" />
       <LinearGradient
-        colors={['#2A0B20', '#E70A5A']}
+        colors={screenGradients.profile}
         start={{ x: 0.1, y: 0.9 }}
         end={{ x: 0.9, y: 0.1 }}
         style={StyleSheet.absoluteFill}
       />
+      <View pointerEvents="none" style={styles.decorLayer}>
+        <View style={styles.decorCircleLarge} />
+        <View style={styles.decorCircleSmall} />
+      </View>
 
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} activeOpacity={0.8}>
-          <Ionicons name="chevron-back" size={26} color="#fff" />
+          <Ionicons name="chevron-back" size={26} color={accentPink} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity activeOpacity={0.8} onPress={() => handleSettingPress('settings')}>
-          <Ionicons name="settings-outline" size={22} color="#fff" />
+          <Ionicons name="settings-outline" size={22} color={accentPink} />
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.profileCard}>
+        <GlassmorphicView style={styles.profileCard}>
+          <View style={styles.profileCardContent}>
           <View style={styles.avatarWrapper}>
             <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={40} color="rgba(255,255,255,0.7)" />
+              <Ionicons name="person" size={40} color={accentPinkLight} />
             </View>
             <View style={styles.avatarGlow} />
           </View>
@@ -139,14 +168,45 @@ export default function ProfileScreen() {
               onPress={() => navigation.navigate('Upgrade')}
               activeOpacity={0.9}
             >
-              <Text style={styles.upgradeText}>Upgrade to Premium</Text>
+              <LinearGradient
+                colors={surfaceGradients.buttonPrimary}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.upgradeButtonGradient}
+              >
+                <Text style={styles.upgradeText}>Upgrade to Premium</Text>
+              </LinearGradient>
             </TouchableOpacity>
           )}
-        </View>
+          </View>
+        </GlassmorphicView>
+
+        <GlassmorphicView style={styles.quickActionCard}>
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            onPress={handleDeleteAccount}
+            accessibilityRole="button"
+            accessibilityLabel="Delete account"
+            accessibilityHint="Opens the delete account confirmation screen"
+            activeOpacity={0.85}
+          >
+            <View style={styles.quickActionIconWrap}>
+              <Ionicons name="trash-outline" size={20} color="#BF0F53" />
+            </View>
+            <View style={styles.quickActionTextWrap}>
+              <Text style={styles.quickActionTitle}>Delete Account</Text>
+              <Text style={styles.quickActionSubtitle} numberOfLines={2}>
+                Permanently remove your profile, saved looks, and billing data.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#F25B8A" />
+          </TouchableOpacity>
+        </GlassmorphicView>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>My Space</Text>
-          <View style={styles.menuCard}>
+          <GlassmorphicView style={styles.menuCard}>
+            <View style={styles.menuList}>
             {menuItemsPrimary.map((item, index) => (
               <TouchableOpacity
                 key={item.label}
@@ -155,54 +215,74 @@ export default function ProfileScreen() {
                 activeOpacity={0.85}
               >
                 <View style={styles.menuIconWrap}>
-                  <Ionicons name={item.icon as any} size={20} color="#fff" />
+                  <Ionicons name={item.icon} size={20} color={accentPink} />
                 </View>
                 <Text style={styles.menuText}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.45)" />
+                <Ionicons name="chevron-forward" size={18} color={accentPinkLight} />
               </TouchableOpacity>
             ))}
-          </View>
+            </View>
+          </GlassmorphicView>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Settings</Text>
-          <View style={styles.menuCard}>
+          <GlassmorphicView style={styles.menuCard}>
+            <View style={styles.menuList}>
             {menuItemsSecondary.map((item, index) => (
               <TouchableOpacity
                 key={item.label}
                 style={[styles.menuItem, index === menuItemsSecondary.length - 1 && styles.menuItemLast]}
-                onPress={() => handleSettingPress(item.label)}
+                onPress={() => (item.onPress ? item.onPress() : handleSettingPress(item.label))}
                 activeOpacity={0.85}
               >
                 <View style={styles.menuIconWrap}>
-                  <Ionicons name={item.icon as any} size={20} color="#fff" />
+                  <Ionicons
+                    name={item.icon}
+                    size={20}
+                    color={item.variant === 'destructive' ? '#BF0F53' : accentPink}
+                  />
                 </View>
-                <Text style={styles.menuText}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.45)" />
+                <Text
+                  style={[
+                    styles.menuText,
+                    item.variant === 'destructive' && styles.menuTextDestructive,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={item.variant === 'destructive' ? '#F25B8A' : accentPinkLight}
+                />
               </TouchableOpacity>
             ))}
-          </View>
+            </View>
+          </GlassmorphicView>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Subscription</Text>
-          <TouchableOpacity
-            style={styles.manageSubscriptionCard}
-            activeOpacity={0.88}
-            onPress={async () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              await openManageSubscriptions();
-            }}
-          >
-            <View style={styles.manageIconWrap}>
-              <Ionicons name="card-outline" size={22} color="#fff" />
-            </View>
-            <View style={styles.manageTextWrap}>
-              <Text style={styles.manageTitle}>Manage Subscription</Text>
-              <Text style={styles.manageSubtitle}>Open the App Store to update or cancel billing.</Text>
-            </View>
-            <Ionicons name="open-outline" size={20} color="rgba(255,255,255,0.85)" />
-          </TouchableOpacity>
+          <GlassmorphicView style={styles.manageSubscriptionCard}>
+            <TouchableOpacity
+              style={styles.manageContent}
+              activeOpacity={0.88}
+              onPress={async () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                await openManageSubscriptions();
+              }}
+            >
+              <View style={styles.manageIconWrap}>
+                <Ionicons name="card-outline" size={22} color={accentPink} />
+              </View>
+              <View style={styles.manageTextWrap}>
+                <Text style={styles.manageTitle}>Manage Subscription</Text>
+                <Text style={styles.manageSubtitle}>Opens the App Store to update or cancel billing.</Text>
+              </View>
+              <Ionicons name="open-outline" size={20} color={accentPinkLight} />
+            </TouchableOpacity>
+          </GlassmorphicView>
         </View>
 
         <View style={styles.authSection}>
@@ -217,7 +297,14 @@ export default function ProfileScreen() {
                 } catch {}
               }}
             >
-              <Text style={styles.signInText}>Sign Out</Text>
+              <LinearGradient
+                colors={surfaceGradients.buttonSecondary}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.signInGradient}
+              >
+                <Text style={styles.signInText}>Sign Out</Text>
+              </LinearGradient>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -225,7 +312,14 @@ export default function ProfileScreen() {
               activeOpacity={0.92}
               onPress={() => navigation.navigate('Login')}
             >
-              <Text style={styles.signInText}>Sign In</Text>
+              <LinearGradient
+                colors={surfaceGradients.buttonSecondary}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.signInGradient}
+              >
+                <Text style={styles.signInText}>Sign In</Text>
+              </LinearGradient>
             </TouchableOpacity>
           )}
         </View>
@@ -237,7 +331,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: creamBase,
   },
   header: {
     flexDirection: 'row',
@@ -250,7 +344,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#fff',
+    color: accentPink,
   },
   content: {
     paddingHorizontal: 20,
@@ -258,16 +352,55 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     marginTop: 12,
+    borderRadius: 34,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(193,25,97,0.18)',
+    shadowColor: '#FF6BA6',
+    shadowOffset: { width: 0, height: 26 },
+    shadowOpacity: 0.24,
+    shadowRadius: 34,
+    backgroundColor: 'rgba(255,255,255,0.82)',
+  },
+  profileCardContent: {
     alignItems: 'center',
     paddingVertical: 32,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.18,
-    shadowRadius: 28,
+    paddingHorizontal: 24,
+  },
+  quickActionCard: {
+    marginHorizontal: 16,
+    marginBottom: 28,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  quickActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    gap: 16,
+  },
+  quickActionIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(191, 15, 83, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionTextWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  quickActionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#BF0F53',
+  },
+  quickActionSubtitle: {
+    fontSize: 13,
+    color: '#6A223E',
+    lineHeight: 18,
   },
   avatarWrapper: {
     position: 'relative',
@@ -277,7 +410,7 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(193,25,97,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -287,20 +420,20 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    opacity: 0.5,
+    borderColor: 'rgba(255,255,255,0.32)',
+    opacity: 0.6,
     alignSelf: 'center',
     top: -15,
   },
   userName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
-    color: '#fff',
+    color: accentPink,
   },
   userEmail: {
     marginTop: 6,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(193,25,97,0.7)',
   },
   statsRow: {
     flexDirection: 'row',
@@ -312,28 +445,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
-    color: '#fff',
+    color: accentPink,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(193,25,97,0.6)',
   },
   upgradeButton: {
     marginTop: 26,
-    backgroundColor: '#fff',
-    paddingVertical: 14,
-    paddingHorizontal: 28,
     borderRadius: 999,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#FF6BA6',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.3,
+    shadowRadius: 28,
+  },
+  upgradeButtonGradient: {
+    width: '100%',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   upgradeText: {
-    color: '#2A0B20',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -343,14 +481,21 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.72)',
+    color: accentPink,
     marginBottom: 12,
   },
   menuCard: {
-    borderRadius: 22,
+    borderRadius: 26,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(193,25,97,0.18)',
+    shadowColor: '#FF6BA6',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.28,
+    shadowRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+  },
+  menuList: {
     overflow: 'hidden',
   },
   menuItem: {
@@ -359,7 +504,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: 'rgba(193,25,97,0.12)',
   },
   menuItemLast: {
     borderBottomWidth: 0,
@@ -368,7 +513,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(193,25,97,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -376,18 +521,29 @@ const styles = StyleSheet.create({
   menuText: {
     flex: 1,
     fontSize: 16,
-    color: '#fff',
+    color: accentPink,
     fontWeight: '500',
   },
+  menuTextDestructive: {
+    color: '#BF0F53',
+  },
   manageSubscriptionCard: {
+    borderRadius: 26,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(193,25,97,0.18)',
+    shadowColor: '#FF6BA6',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.26,
+    shadowRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+  },
+  manageContent: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 18,
     paddingVertical: 18,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.9)',
   },
   manageIconWrap: {
     width: 44,
@@ -404,11 +560,11 @@ const styles = StyleSheet.create({
   manageTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: accentPink,
   },
   manageSubtitle: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(193,25,97,0.7)',
     marginTop: 2,
   },
   authSection: {
@@ -416,18 +572,45 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   signInButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 16,
     borderRadius: 32,
+    overflow: 'hidden',
+    shadowColor: '#FF6BA6',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.28,
+    shadowRadius: 26,
+  },
+  signInGradient: {
+    width: '100%',
+    paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
   },
   signInText: {
-    color: '#2A0B20',
+    color: accentPink,
     fontSize: 17,
     fontWeight: '600',
+  },
+  decorLayer: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 1,
+  },
+  decorCircleLarge: {
+    position: 'absolute',
+    width: WINDOW_WIDTH * 1.25,
+    height: WINDOW_WIDTH * 1.25,
+    borderRadius: (WINDOW_WIDTH * 1.25) / 2,
+    backgroundColor: overlayShapes.highlight,
+    top: -WINDOW_WIDTH * 0.55,
+    right: -WINDOW_WIDTH * 0.45,
+  },
+  decorCircleSmall: {
+    position: 'absolute',
+    width: WINDOW_WIDTH * 0.9,
+    height: WINDOW_WIDTH * 0.9,
+    borderRadius: (WINDOW_WIDTH * 0.9) / 2,
+    backgroundColor: overlayShapes.softer,
+    bottom: -WINDOW_WIDTH * 0.45,
+    left: -WINDOW_WIDTH * 0.25,
   },
 });

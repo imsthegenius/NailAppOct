@@ -64,6 +64,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.85)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-    backdropFilter: 'blur(20px)', // Will work on some Android devices
   },
 });

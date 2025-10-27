@@ -4,6 +4,8 @@
   <dict>
     <key>CADisableMinimumFrameDurationOnPhone</key>
     <true/>
+    <key>CFBundleAllowMixedLocalizations</key>
+    <true/>
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
@@ -30,12 +32,6 @@
           <string>com.nailglow.app</string>
         </array>
       </dict>
-      <dict>
-        <key>CFBundleURLSchemes</key>
-        <array>
-          <string>exp+nail-app-mobile</string>
-        </array>
-      </dict>
     </array>
     <key>CFBundleVersion</key>
     <string>1</string>
@@ -45,8 +41,6 @@
     <true/>
     <key>NSAppTransportSecurity</key>
     <dict>
-      <key>NSAllowsLocalNetworking</key>
-      <true/>
       <key>NSAllowsArbitraryLoads</key>
       <false/>
       <key>NSExceptionDomains</key>
@@ -87,12 +81,21 @@
     </dict>
     <key>NSCameraUsageDescription</key>
     <string>NailGlow needs camera access to capture photos of your nails for virtual nail polish try-on and AI transformation.</string>
-    <key>NSLocalNetworkUsageDescription</key>
-    <string>NailGlow connects to your local development server during debugging to load JavaScript.</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>NailGlow saves your transformed nail designs to your photo library so you can share them with your nail technician.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>NailGlow needs photo library access to select nail photos and save your transformed designs.</string>
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+      <key>UIApplicationSupportsMultipleScenes</key>
+      <false/>
+      <key>UIApplicationSupportsTabbedSceneCollection</key>
+      <false/>
+    </dict>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>
@@ -107,13 +110,6 @@
     <array>
       <string>UIInterfaceOrientationPortrait</string>
       <string>UIInterfaceOrientationPortraitUpsideDown</string>
-    </array>
-    <key>UISupportedInterfaceOrientations~ipad</key>
-    <array>
-      <string>UIInterfaceOrientationPortrait</string>
-      <string>UIInterfaceOrientationPortraitUpsideDown</string>
-      <string>UIInterfaceOrientationLandscapeLeft</string>
-      <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
     <key>UIUserInterfaceStyle</key>
     <string>Light</string>

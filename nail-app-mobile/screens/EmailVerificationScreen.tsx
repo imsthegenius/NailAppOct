@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Linking,
-  StatusBar,
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,7 +12,9 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../lib/supabase';
-import type { RootStackParamList } from '../App';
+import type { RootStackParamList } from '../navigation/types';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 const CARD_BACKGROUND = 'rgba(255, 255, 255, 0.18)';
 
@@ -88,7 +88,7 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar style="light" />
       <LinearGradient
         colors={['#2A0B20', '#E70A5A']}
         start={{ x: 0.1, y: 0.9 }}

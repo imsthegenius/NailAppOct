@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Image,
   TouchableOpacity,
-  SafeAreaView,
   Dimensions,
   Alert,
   ActivityIndicator,
@@ -14,15 +13,17 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../App';
+import type { MainStackParamList } from '../navigation/types';
 import { useSelectionStore } from '../lib/selectedData';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import { supabase } from '../lib/supabase';
 import { uploadImageToSupabase, saveNailLook } from '../lib/supabaseStorage';
 import { GlassToast } from '../components/ui/GlassToast';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useThemeColors } from '../hooks/useColorScheme';
 
-type ResultsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Results'>;
+type ResultsScreenNavigationProp = StackNavigationProp<MainStackParamList, 'Results'>;
 
 type Props = {
   navigation: ResultsScreenNavigationProp;
@@ -78,6 +79,23 @@ export default function ResultsScreen({ navigation, route }: Props) {
   
   const selectedColor = useSelectionStore((state) => state.selectedColor);
   const selectedShape = useSelectionStore((state) => state.selectedShape);
+  const theme = useThemeColors();
+
+  useEffect(() => {
+    if (!imageUri) {
+      navigation.replace('Camera');
+    }
+  }, [imageUri, navigation]);
+
+  const accentColor = selectedColor?.hex || theme.accent;
+
+  if (!imageUri) {
+    return (
+      <View style={styles.fallbackContainer}>
+        <ActivityIndicator size="small" color={theme.accent} />
+      </View>
+    );
+  }
   const ensureBase64DataUrl = async (uri?: string, inline?: string | null): Promise<string | null> => {
     const guessMime = (b64: string): string => {
       if (!b64) return 'image/jpeg';
@@ -140,7 +158,7 @@ export default function ResultsScreen({ navigation, route }: Props) {
               text: 'Sign In',
               // Route to Profile (which contains auth entry points) to avoid navigating
               // to a non-existent Login screen that can blank out navigation.
-              onPress: () => navigation.navigate('Profile' as any)
+              onPress: () => navigation.navigate('Profile')
             }
           ]
         );
@@ -296,7 +314,7 @@ export default function ResultsScreen({ navigation, route }: Props) {
     
     // Navigate to Design screen to make new selections
     setTimeout(() => {
-      navigation.navigate('Design' as any, {
+      navigation.navigate('Design', {
         fromResults: true,
         photoData: {
           imageUri: originalImageUri || imageUri,
@@ -327,7 +345,7 @@ export default function ResultsScreen({ navigation, route }: Props) {
           </TouchableOpacity>
           
           <View style={styles.styleInfo}>
-            <View style={[styles.colorChip, { backgroundColor: selectedColor?.hex || '#FF69B4' }]} />
+            <View style={[styles.colorChip, { backgroundColor: accentColor }]} />
             <View>
               <Text style={styles.styleText}>
                 {selectedColor?.name || 'Color'} • {selectedShape?.name || 'Shape'}
@@ -382,7 +400,7 @@ export default function ResultsScreen({ navigation, route }: Props) {
         duration={800}
         onHide={() => {
           setShowToast(false);
-          navigation.navigate('Feed' as any);
+          navigation.navigate('Feed');
         }}
       />
     </View>
@@ -392,6 +410,12 @@ export default function ResultsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000',
+  },
+  fallbackContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#000',
   },
   resultImage: {

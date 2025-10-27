@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,15 +6,16 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
-  SafeAreaView,
   Dimensions,
   ActivityIndicator,
   DeviceEventEmitter,
   Modal,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LiquidGlassTabBar } from '../components/ui/LiquidGlassTabBar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +23,9 @@ import { useThemeColors } from '../hooks/useColorScheme';
 import { supabase } from '../lib/supabase';
 import { getUserLooks } from '../lib/supabaseStorage';
 import * as FileSystem from 'expo-file-system';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BRAND_COLORS } from '../src/theme/colors';
+import type { MainStackParamList } from '../navigation/types';
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 4) / 2; // 2 columns with minimal spacing
@@ -51,12 +55,54 @@ type SavedLook = {
   errorMessage?: string | null;
 };
 
+const CACHE_POLICY_STORAGE_KEY = 'feed-cache-policy';
+const CACHE_POLICIES = {
+  standard: { label: 'Standard • 120 MB', maxFiles: 80, maxBytes: 120 * 1024 * 1024 },
+  compact: { label: 'Compact • 60 MB', maxFiles: 40, maxBytes: 60 * 1024 * 1024 },
+} as const;
+
 export default function FeedScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<StackNavigationProp<MainStackParamList, 'Feed'>>();
   const theme = useThemeColors();
   const [savedLooks, setSavedLooks] = useState<SavedLook[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLook, setSelectedLook] = useState<SavedLook | null>(null);
+  const [cachePolicy, setCachePolicy] = useState<keyof typeof CACHE_POLICIES>('standard');
+  const cacheSettings = CACHE_POLICIES[cachePolicy];
+  const maxCacheFiles = cacheSettings.maxFiles;
+  const maxCacheBytes = cacheSettings.maxBytes;
+  const [failedImageIds, setFailedImageIds] = useState<Record<string, boolean>>({});
+  const cycleCachePolicy = useCallback(() => {
+    setCachePolicy((current) => (current === 'standard' ? 'compact' : 'standard'));
+  }, []);
+  const closePreview = useCallback(() => {
+    if (selectedLook) {
+      void Haptics.selectionAsync();
+      setSelectedLook(null);
+    }
+  }, [selectedLook]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(CACHE_POLICY_STORAGE_KEY)
+      .then((value) => {
+        if (value === 'compact' || value === 'standard') {
+          setCachePolicy(value);
+        }
+      })
+      .catch((error) => {
+        if (__DEV__) {
+          console.warn('Failed to load cache policy', error);
+        }
+      });
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.setItem(CACHE_POLICY_STORAGE_KEY, cachePolicy).catch((error) => {
+      if (__DEV__) {
+        console.warn('Failed to persist cache policy', error);
+      }
+    });
+  }, [cachePolicy]);
 
   useEffect(() => {
     loadSavedLooks();
@@ -134,6 +180,86 @@ export default function FeedScreen() {
   }, []);
 
   const cacheDir = `${FileSystem.cacheDirectory ?? ''}saved-looks/`;
+  const pruneInFlight = useRef<Promise<void> | null>(null);
+
+  const pruneCacheDirectory = useCallback(async () => {
+    if (pruneInFlight.current) {
+      return pruneInFlight.current;
+    }
+
+    const prunePromise = (async () => {
+      try {
+        const entries = await FileSystem.readDirectoryAsync(cacheDir);
+        if (!entries.length) {
+          return;
+        }
+
+        const files: { uri: string; size: number; mtime: number }[] = [];
+        for (const entry of entries) {
+          const uri = `${cacheDir}${entry}`;
+          try {
+            const info = await FileSystem.getInfoAsync(uri, { size: true });
+            if (!info.exists) {
+              continue;
+            }
+            files.push({
+              uri,
+              size: typeof info.size === 'number' ? info.size : 0,
+              mtime: typeof info.modificationTime === 'number' ? info.modificationTime : 0,
+            });
+          } catch (error) {
+            if (__DEV__) {
+              console.warn('Failed inspecting cached look asset', uri, error);
+            }
+          }
+        }
+
+        if (!files.length) {
+          return;
+        }
+
+        let totalSize = files.reduce((sum, file) => sum + file.size, 0);
+        if (totalSize <= maxCacheBytes && files.length <= maxCacheFiles) {
+          return;
+        }
+
+        files.sort((a, b) => a.mtime - b.mtime);
+
+        while ((totalSize > maxCacheBytes || files.length > maxCacheFiles) && files.length) {
+          const file = files.shift();
+          if (!file) {
+            break;
+          }
+          try {
+            await FileSystem.deleteAsync(file.uri, { idempotent: true });
+            totalSize -= file.size;
+          } catch (error) {
+            if (__DEV__) {
+              console.warn('Failed removing cached look asset', file.uri, error);
+            }
+          }
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.warn('Failed pruning saved looks cache', error);
+        }
+      }
+    })();
+
+    pruneInFlight.current = prunePromise;
+
+    try {
+      await prunePromise;
+    } finally {
+      if (pruneInFlight.current === prunePromise) {
+        pruneInFlight.current = null;
+      }
+    }
+  }, [cacheDir, maxCacheFiles, maxCacheBytes]);
+
+  useEffect(() => {
+    pruneCacheDirectory();
+  }, [cachePolicy, pruneCacheDirectory]);
 
   const isRemoteUri = (uri?: string | null) => !!uri && /^https?:/i.test(uri);
 
@@ -148,11 +274,13 @@ export default function FeedScreen() {
     }
 
     const updates = new Map<string, SavedLook>();
+    let touchedCache = false;
 
     for (const look of looks) {
       let localTransformed = look.localTransformedImage ?? null;
       let localOriginal = look.localOriginalImage ?? null;
       let changed = false;
+      let downloaded = false;
 
       if (!localTransformed && isRemoteUri(look.transformedImage)) {
         const ext = look.transformedImage.split('.').pop()?.split('?')[0] || 'jpg';
@@ -164,6 +292,7 @@ export default function FeedScreen() {
           } else {
             const { uri } = await FileSystem.downloadAsync(look.transformedImage, target);
             localTransformed = uri;
+            downloaded = true;
           }
           changed = true;
         } catch (error) {
@@ -183,6 +312,7 @@ export default function FeedScreen() {
           } else {
             const { uri } = await FileSystem.downloadAsync(look.originalImage, target);
             localOriginal = uri;
+            downloaded = true;
           }
           changed = true;
         } catch (error) {
@@ -199,6 +329,10 @@ export default function FeedScreen() {
           localOriginalImage: localOriginal ?? look.localOriginalImage ?? null,
         });
       }
+
+      if (downloaded) {
+        touchedCache = true;
+      }
     }
 
     if (updates.size) {
@@ -206,7 +340,11 @@ export default function FeedScreen() {
       setSavedLooks(next);
       await AsyncStorage.setItem('savedLooks', JSON.stringify(next));
     }
-  }, [cacheDir]);
+
+    if (touchedCache) {
+      await pruneCacheDirectory();
+    }
+  }, [cacheDir, pruneCacheDirectory]);
 
   const loadSavedLooks = async (showSpinner: boolean = true) => {
     if (showSpinner) {
@@ -252,8 +390,51 @@ export default function FeedScreen() {
     setSelectedLook(look);
   };
 
+  const markImageFailed = useCallback((id: string) => {
+    setFailedImageIds((current) => {
+      if (current[id]) {
+        return current;
+      }
+      return { ...current, [id]: true };
+    });
+  }, []);
+
+  const selectLookImageUri = useCallback(
+    (look: SavedLook) => {
+      const preferOriginal = failedImageIds[look.id];
+      const candidates = preferOriginal
+        ? [
+            look.localOriginalImage,
+            look.originalImage,
+            look.localTransformedImage,
+            look.transformedImage,
+          ]
+        : [
+            look.localTransformedImage,
+            look.transformedImage,
+            look.localOriginalImage,
+            look.originalImage,
+          ];
+
+      return candidates.find((value): value is string => Boolean(value && typeof value === 'string')) ?? '';
+    },
+    [failedImageIds]
+  );
+
+  useEffect(() => {
+    if (!selectedLook) {
+      return;
+    }
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      closePreview();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [selectedLook, closePreview]);
+
   const renderLookItem = ({ item, index }: { item: SavedLook; index: number }) => {
     const isLeft = index % 2 === 0;
+    const imageUri = selectLookImageUri(item);
     
     return (
       <TouchableOpacity
@@ -261,10 +442,19 @@ export default function FeedScreen() {
         onPress={() => handleLookPress(item)}
         activeOpacity={0.9}
       >
-        <Image 
-          source={{ uri: item.localTransformedImage ?? item.transformedImage }}
-          style={styles.lookImage}
-        />
+        {imageUri ? (
+          <Image 
+            key={`${item.id}-${failedImageIds[item.id] ? 'fallback' : 'primary'}`}
+            source={{ uri: imageUri }}
+            style={styles.lookImage}
+            resizeMode="cover"
+            onError={() => markImageFailed(item.id)}
+          />
+        ) : (
+          <View style={[styles.lookImage, styles.lookImageFallback]}>
+            <Ionicons name="image-outline" size={24} color="rgba(255,255,255,0.6)" />
+          </View>
+        )}
         {item.status === 'error' && (
           <View style={styles.errorOverlay}>
             <Ionicons name="warning" size={16} color="#fff" />
@@ -329,24 +519,29 @@ export default function FeedScreen() {
 
       {/* Filter tabs */}
       <View style={styles.filterTabs}>
-        <TouchableOpacity style={[styles.filterTab, styles.filterTabActive]}>
-          <Text style={[styles.filterTabText, styles.filterTabTextActive]}>All</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterTab}>
-          <Text style={styles.filterTabText}>Favorites</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterTab}>
-          <Text style={styles.filterTabText}>Recent</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterTab}>
-          <Text style={styles.filterTabText}>Compare</Text>
+        <View style={[styles.filterTab, styles.filterTabActive]}>
+          <Text style={[styles.filterTabText, { color: theme.text }]}>All</Text>
+        </View>
+      </View>
+
+      <View style={styles.cacheRow}>
+        <TouchableOpacity
+          style={styles.cacheChip}
+          onPress={cycleCachePolicy}
+          accessibilityRole="button"
+          accessibilityLabel="Toggle cache policy"
+          accessibilityHint="Switches between standard and compact saved-look caching."
+          activeOpacity={0.85}
+        >
+          <Ionicons name="cloud-outline" size={16} color={theme.text} style={{ marginRight: 6 }} />
+          <Text style={[styles.cacheChipLabel, { color: theme.textSecondary }]}>{cacheSettings.label}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Content */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF69B4" />
+          <ActivityIndicator size="large" color={theme.accent} />
         </View>
       ) : savedLooks.length === 0 ? (
         <EmptyState />
@@ -382,15 +577,29 @@ export default function FeedScreen() {
         visible={!!selectedLook}
         animationType="fade"
         transparent
-        onRequestClose={() => setSelectedLook(null)}
+        onRequestClose={closePreview}
       >
         {selectedLook ? (
           <View style={styles.modalBackdrop}>
-            <Image
-              source={{ uri: selectedLook.localTransformedImage ?? selectedLook.transformedImage }}
-              style={styles.modalImageFull}
-              resizeMode="contain"
-            />
+            {(() => {
+              const previewUri = selectLookImageUri(selectedLook);
+              if (!previewUri) {
+                return (
+                  <View style={[styles.modalImageFull, styles.modalImageFallback]}>
+                    <Ionicons name="image-outline" size={42} color="rgba(255,255,255,0.7)" />
+                  </View>
+                );
+              }
+              return (
+                <Image
+                  key={`${selectedLook.id}-${failedImageIds[selectedLook.id] ? 'fallback' : 'primary'}`}
+                  source={{ uri: previewUri }}
+                  style={styles.modalImageFull}
+                  resizeMode="contain"
+                  onError={() => markImageFailed(selectedLook.id)}
+                />
+              );
+            })()}
             <LinearGradient
               colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.75)']}
               locations={[0, 1]}
@@ -409,11 +618,13 @@ export default function FeedScreen() {
                 )}
               </View>
             </LinearGradient>
-            <SafeAreaView style={styles.modalSafeArea} pointerEvents="box-none">
+            <SafeAreaView style={styles.modalSafeArea}>
               <TouchableOpacity
                 style={styles.modalCloseButton}
-                onPress={() => setSelectedLook(null)}
+                onPress={closePreview}
                 accessibilityLabel="Close full screen preview"
+                accessibilityRole="button"
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
                 <Ionicons name="close" size={28} color="#fff" />
               </TouchableOpacity>
@@ -452,21 +663,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 15,
   },
+  cacheRow: {
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    alignItems: 'flex-start',
+  },
+  cacheChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+  },
+  cacheChipLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   filterTab: {
     marginRight: 20,
     paddingBottom: 5,
   },
   filterTabActive: {
     borderBottomWidth: 2,
-    borderBottomColor: '#FF69B4',
+    borderBottomColor: BRAND_COLORS.accent,
   },
   filterTabText: {
     fontSize: 14,
     color: '#666',
     fontWeight: '500',
-  },
-  filterTabTextActive: {
-    color: '#FFF',
   },
   loadingContainer: {
     flex: 1,
@@ -489,6 +716,11 @@ const styles = StyleSheet.create({
   lookImage: {
     width: '100%',
     height: '100%',
+  },
+  lookImageFallback: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   errorOverlay: {
     position: 'absolute',
@@ -555,7 +787,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   createButton: {
-    backgroundColor: '#FF69B4',
+    backgroundColor: BRAND_COLORS.accent,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
@@ -572,6 +804,11 @@ const styles = StyleSheet.create({
   },
   modalImageFull: {
     ...StyleSheet.absoluteFillObject,
+  },
+  modalImageFallback: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   modalGradient: {
     position: 'absolute',
@@ -614,6 +851,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 16,
+    zIndex: 2,
   },
   modalCloseButton: {
     width: 44,

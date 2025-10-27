@@ -10,8 +10,10 @@ import ResultsScreen from '../screens/ResultsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CompareScreen from '../screens/CompareScreen';
 import UpgradeScreen from '../screens/UpgradeScreen';
+import DeleteAccountScreen from '../screens/DeleteAccountScreen';
+import type { MainStackParamList } from './types';
 
-const Stack = createStackNavigator();
+const Stack = createStackNavigator<MainStackParamList>();
 
 export default function MainNavigator() {
   return (
@@ -38,6 +40,7 @@ export default function MainNavigator() {
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="CompareScreen" component={CompareScreen} />
       <Stack.Screen name="Upgrade" component={UpgradeScreen} />
+      <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
     </Stack.Navigator>
   );
 }

@@ -5,10 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ConnectionTestScreen() {
   const [testResults, setTestResults] = useState<any[]>([]);
@@ -27,7 +27,7 @@ export default function ConnectionTestScreen() {
       : resolvedSummary.status === 'warn'
         ? styles.infoBoxWarn
         : styles.infoBoxOk;
-  const infoIconName =
+  const infoIconName: keyof typeof Ionicons.glyphMap =
     resolvedSummary.status === 'error'
       ? 'alert-circle'
       : resolvedSummary.status === 'warn'
@@ -200,7 +200,7 @@ export default function ConnectionTestScreen() {
         <Text style={styles.title}>Connection Diagnostics</Text>
         
         <View style={[styles.infoBox, infoBoxStyle]}>
-          <Ionicons name={infoIconName as any} size={22} color={infoIconColor} style={styles.infoIcon} />
+          <Ionicons name={infoIconName} size={22} color={infoIconColor} style={styles.infoIcon} />
           <View style={styles.infoTextWrap}>
             <Text style={styles.infoTitle}>{resolvedSummary.message}</Text>
             {resolvedSummary.hint ? (

@@ -19,6 +19,7 @@ import HomeScreen from './screens/HomeScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import LoginScreen from './screens/LoginScreen';
 import SignupScreen from './screens/SignupScreen';
+import AuthLandingScreen from './screens/AuthLandingScreen';
 import EmailVerificationScreen from './screens/EmailVerificationScreen';
 import LegalAcceptanceScreen from './screens/LegalAcceptanceScreen';
 import ConnectionTestScreen from './screens/ConnectionTestScreen';
@@ -29,35 +30,24 @@ import ConnectionStatusBanner, { ConnectionStatus } from './components/Connectio
 
 // Main App Navigator
 import MainNavigator from './navigation/MainNavigator';
-
-// Types
-export type RootStackParamList = {
-  Splash: undefined;
-  Home: undefined;
-  Onboarding: undefined;
-  Main: undefined;
-  Login: undefined;
-  Signup: undefined;
-  EmailVerification: { email: string } | undefined;
-  LegalAcceptance: { status?: import('./lib/onboardingFlow').LegalAcceptanceStatus | null } | undefined;
-  ConnectionTest: undefined;
-  PrivacyPolicy: undefined;
-  TermsOfService: undefined;
-  DeleteAccount: undefined;
-  // Nested screens (for type safety)
-  Camera: undefined;
-  Results: { imageUri?: string };
-  Processing: { imageUri: string; base64?: string };
-  ColorSelection: undefined;
-  ShapeSelection: undefined;
-  Design: undefined;
-  Feed: undefined;
-  Profile: undefined;
-  CompareScreen: undefined;
-  MyLooks: undefined;
-};
+import type { RootStackParamList } from './navigation/types';
 
 const Stack = createStackNavigator<RootStackParamList>();
+
+const areConnectionStatusesEqual = (a: ConnectionStatus | null, b: ConnectionStatus | null) => {
+  if (a === b) {
+    return true;
+  }
+  if (!a || !b) {
+    return false;
+  }
+  return (
+    a.internet === b.internet &&
+    a.supabase === b.supabase &&
+    a.message === b.message &&
+    Boolean(a.isUsingProxy) === Boolean(b.isUsingProxy)
+  );
+};
 
 export default function App() {
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
@@ -69,8 +59,8 @@ export default function App() {
     try {
       const { getConnectionStatus } = await import('./lib/checkSupabase');
       const status = await getConnectionStatus();
-      setConnectionStatus(status);
-      setShowConnectionBanner(true);
+      setConnectionStatus((current) => (areConnectionStatusesEqual(current, status) ? current : status));
+      setShowConnectionBanner((showing) => showing || !status.internet || !status.supabase);
 
       if (__DEV__) {
         console.log('Connection status snapshot:', status);
@@ -79,12 +69,21 @@ export default function App() {
       if (__DEV__) {
         console.error('Connection test error:', err?.message || err);
       }
-      setConnectionStatus({
-        internet: false,
-        supabase: false,
-        message: 'Unable to verify service status right now.',
-        isUsingProxy: false,
-      });
+      setConnectionStatus((current) =>
+        areConnectionStatusesEqual(current, {
+          internet: false,
+          supabase: false,
+          message: 'Unable to verify service status right now.',
+          isUsingProxy: false,
+        })
+          ? current
+          : {
+              internet: false,
+              supabase: false,
+              message: 'Unable to verify service status right now.',
+              isUsingProxy: false,
+            }
+      );
       setShowConnectionBanner(true);
     }
   }, []);
@@ -226,6 +225,7 @@ export default function App() {
             />
             <Stack.Screen name="ConnectionTest" component={ConnectionTestScreen} />
             <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+            <Stack.Screen name="AuthLanding" component={AuthLandingScreen} />
             <Stack.Screen name="Main" component={MainNavigator} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />

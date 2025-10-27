@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -10,14 +9,14 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  StatusBar,
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { screenGradients } from '../theme/gradients';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../App';
+import type { RootStackParamList } from '../navigation/types';
 import { supabase } from '../lib/supabase';
 import { supabaseProxy, testProxyConnection } from '../lib/supabaseProxy';
 import {
@@ -25,6 +24,11 @@ import {
   markOnboardingComplete,
   resolvePostAuthDestination,
 } from '../lib/onboardingFlow';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { isAppleSignInAvailable, signInWithApple } from '../lib/appleSignIn';
+const CARD_BACKGROUND = 'rgba(255, 255, 255, 0.18)';
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -32,13 +36,19 @@ type Props = {
   navigation: LoginScreenNavigationProp;
 };
 
-const CARD_BACKGROUND = 'rgba(255, 255, 255, 0.18)';
-
 export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+
+  useEffect(() => {
+    isAppleSignInAvailable()
+      .then(setAppleAvailable)
+      .catch(() => setAppleAvailable(false));
+  }, []);
 
   const routeAfterLogin = async () => {
     const { status, needsLegal } = await resolvePostAuthDestination();
@@ -208,13 +218,43 @@ export default function LoginScreen({ navigation }: Props) {
     }
   };
 
+  const handleAppleLogin = async () => {
+    if (appleLoading) {
+      return;
+    }
+
+    if (!appleAvailable) {
+      Alert.alert('Sign in with Apple', 'Sign in with Apple is not available on this device.');
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setAppleLoading(true);
+    const result = await signInWithApple();
+    setAppleLoading(false);
+
+    if (result.success) {
+      await routeAfterLogin();
+      return;
+    }
+
+    if (result.reason === 'cancelled') {
+      return;
+    }
+
+    Alert.alert(
+      'Sign in with Apple',
+      result.message ?? 'We were unable to sign you in with Apple. Please try again shortly.'
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar style="light" />
       <LinearGradient
-        colors={['#2A0B20', '#E70A5A']}
-        start={{ x: 0.1, y: 0.9 }}
-        end={{ x: 0.9, y: 0.1 }}
+        colors={screenGradients.auth}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
@@ -223,11 +263,15 @@ export default function LoginScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.replace('AuthLanding'))}
+            activeOpacity={0.8}
+          >
             <Ionicons name="chevron-back" size={26} color="#fff" />
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
-
+          
           <Text style={styles.title}>Welcome back</Text>
           <Text style={styles.subtitle}>
             Sign in to try new colours, revisit saved looks, and keep your favourites synced across devices.
@@ -285,6 +329,9 @@ export default function LoginScreen({ navigation }: Props) {
               onPress={handleLogin}
               disabled={loading}
               activeOpacity={0.92}
+              accessibilityRole="button"
+              accessibilityLabel="Log in"
+              accessibilityHint="Submits your email and password to sign in to NailGlow."
             >
               {loading ? (
                 <ActivityIndicator color="#2A0B20" />
@@ -296,10 +343,33 @@ export default function LoginScreen({ navigation }: Props) {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Need an account?</Text>
-            <TouchableOpacity onPress={() => navigation.replace('Signup')} activeOpacity={0.8}>
-              <Text style={styles.footerLink}>Sign up</Text>
+            <TouchableOpacity
+              onPress={() => navigation.replace('Signup')}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Create account"
+              accessibilityHint="Opens the sign-up form so you can create your NailGlow account."
+            >
+              <Text style={styles.footerLink}>Create Account</Text>
             </TouchableOpacity>
           </View>
+
+          {appleAvailable && (
+            <View style={styles.appleButtonWrapperBottom}>
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                cornerRadius={24}
+                style={styles.appleButton}
+                onPress={handleAppleLogin}
+              />
+              {appleLoading && (
+                <View style={styles.appleSpinnerOverlay} pointerEvents="none">
+                  <ActivityIndicator color="#000" />
+                </View>
+              )}
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -316,7 +386,31 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 24,
-    paddingBottom: 32,
+    paddingBottom: 24,
+    flexGrow: 1,
+    justifyContent: 'space-between',
+  },
+  topSection: { flexShrink: 1 },
+  appleButtonWrapper: {
+    position: 'relative',
+    marginBottom: 24,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  appleButtonWrapperBottom: {
+    position: 'relative',
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  appleButton: {
+    height: 48,
+    width: '100%',
+  },
+  appleSpinnerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   backButton: {
     flexDirection: 'row',
@@ -343,6 +437,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   card: {
+    marginTop: 12,
     backgroundColor: CARD_BACKGROUND,
     borderRadius: 28,
     padding: 24,
@@ -359,7 +454,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.88)',
+    color: 'rgba(255,255,255,0.9)',
     marginBottom: 8,
   },
   passwordLabelRow: {
@@ -369,7 +464,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   link: {
-    color: '#fff',
+    color: 'rgba(255,255,255,0.95)',
     fontSize: 14,
     fontWeight: '600',
     textDecorationLine: 'underline',
@@ -378,11 +473,11 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(255,255,255,0.28)',
     paddingHorizontal: 16,
     color: '#fff',
     fontSize: 16,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   passwordRow: {
     flexDirection: 'row',
@@ -428,5 +523,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     textDecorationLine: 'underline',
+  },
+  signInButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 18,
+    borderRadius: 999,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+  },
+  signInText: {
+    color: '#2A0B20',
+    fontSize: 17,
+    fontWeight: '600',
   },
 });
