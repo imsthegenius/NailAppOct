@@ -21,7 +21,7 @@ import { LiquidGlassTabBar } from '../components/ui/LiquidGlassTabBar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '../hooks/useColorScheme';
 import { supabase } from '../lib/supabase';
-import { getUserLooks } from '../lib/supabaseStorage';
+import { getUserLooks, getPublicUrlFor } from '../lib/supabaseStorage';
 import * as FileSystem from 'expo-file-system';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BRAND_COLORS } from '../src/theme/colors';
@@ -282,15 +282,27 @@ export default function FeedScreen() {
       let changed = false;
       let downloaded = false;
 
-      if (!localTransformed && isRemoteUri(look.transformedImage)) {
-        const ext = look.transformedImage.split('.').pop()?.split('?')[0] || 'jpg';
+      // Always try to refresh signed/public URLs from storage references
+      let transformedSource = look.transformedImage;
+      try {
+        const fresh = await getPublicUrlFor(
+          look.transformedImageStorageBucket,
+          look.transformedImageStoragePath,
+          look.transformedImage,
+        );
+        if (fresh) transformedSource = fresh;
+      } catch {}
+
+      if (!localTransformed && isRemoteUri(transformedSource)) {
+        const ext = transformedSource.split('.').pop()?.split('?')[0] || 'jpg';
         const target = `${cacheDir}${look.id}-transformed.${ext}`;
         try {
-          const info = await FileSystem.getInfoAsync(target);
-          if (info.exists) {
+          const info = await FileSystem.getInfoAsync(target, { size: true } as any);
+          const size = typeof (info as any).size === 'number' ? (info as any).size : 0;
+          if (info.exists && size > 256) {
             localTransformed = info.uri || target;
           } else {
-            const { uri } = await FileSystem.downloadAsync(look.transformedImage, target);
+            const { uri } = await FileSystem.downloadAsync(transformedSource, target);
             localTransformed = uri;
             downloaded = true;
           }
@@ -302,15 +314,26 @@ export default function FeedScreen() {
         }
       }
 
-      if (!localOriginal && isRemoteUri(look.originalImage)) {
-        const ext = look.originalImage.split('.').pop()?.split('?')[0] || 'jpg';
+      let originalSource = look.originalImage;
+      try {
+        const fresh = await getPublicUrlFor(
+          look.originalImageStorageBucket,
+          look.originalImageStoragePath,
+          look.originalImage,
+        );
+        if (fresh) originalSource = fresh;
+      } catch {}
+
+      if (!localOriginal && isRemoteUri(originalSource)) {
+        const ext = originalSource.split('.').pop()?.split('?')[0] || 'jpg';
         const target = `${cacheDir}${look.id}-original.${ext}`;
         try {
-          const info = await FileSystem.getInfoAsync(target);
-          if (info.exists) {
+          const info = await FileSystem.getInfoAsync(target, { size: true } as any);
+          const size = typeof (info as any).size === 'number' ? (info as any).size : 0;
+          if (info.exists && size > 256) {
             localOriginal = info.uri || target;
           } else {
-            const { uri } = await FileSystem.downloadAsync(look.originalImage, target);
+            const { uri } = await FileSystem.downloadAsync(originalSource, target);
             localOriginal = uri;
             downloaded = true;
           }
@@ -325,6 +348,8 @@ export default function FeedScreen() {
       if (changed) {
         updates.set(look.id, {
           ...look,
+          transformedImage: transformedSource || look.transformedImage,
+          originalImage: originalSource || look.originalImage,
           localTransformedImage: localTransformed ?? look.localTransformedImage ?? null,
           localOriginalImage: localOriginal ?? look.localOriginalImage ?? null,
         });
@@ -354,8 +379,8 @@ export default function FeedScreen() {
       const raw = await AsyncStorage.getItem('savedLooks');
       const localLooks: SavedLook[] = raw ? JSON.parse(raw) : [];
       if (localLooks.length) {
+        // Show local placeholders but keep spinner until remote merge completes
         setSavedLooks(localLooks);
-        setLoading(false);
       }
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -390,30 +415,31 @@ export default function FeedScreen() {
     setSelectedLook(look);
   };
 
-  const markImageFailed = useCallback((id: string) => {
-    setFailedImageIds((current) => {
-      if (current[id]) {
-        return current;
+  const markImageFailed = useCallback(async (id: string, uri?: string) => {
+    try {
+      if (uri && uri.startsWith('file://')) {
+        await FileSystem.deleteAsync(uri, { idempotent: true });
       }
-      return { ...current, [id]: true };
-    });
+    } catch {}
+    setFailedImageIds((current) => (current[id] ? current : { ...current, [id]: true }));
   }, []);
 
   const selectLookImageUri = useCallback(
     (look: SavedLook) => {
+      // Remote-first strategy to avoid reusing corrupted local cache files.
       const preferOriginal = failedImageIds[look.id];
       const candidates = preferOriginal
         ? [
-            look.localOriginalImage,
-            look.originalImage,
+            look.originalImage,        // https original first
+            look.transformedImage,     // https transformed
+            look.localOriginalImage,   // local fallbacks
             look.localTransformedImage,
-            look.transformedImage,
           ]
         : [
-            look.localTransformedImage,
-            look.transformedImage,
+            look.transformedImage,     // https transformed first
+            look.originalImage,        // https original
+            look.localTransformedImage,// local fallbacks
             look.localOriginalImage,
-            look.originalImage,
           ];
 
       return candidates.find((value): value is string => Boolean(value && typeof value === 'string')) ?? '';
@@ -435,6 +461,9 @@ export default function FeedScreen() {
   const renderLookItem = ({ item, index }: { item: SavedLook; index: number }) => {
     const isLeft = index % 2 === 0;
     const imageUri = selectLookImageUri(item);
+    if (index < 2) {
+      console.log('Feed imageUri', { id: item.id, imageUri: (imageUri || '').slice(0, 120) })
+    }
     
     return (
       <TouchableOpacity
@@ -448,7 +477,7 @@ export default function FeedScreen() {
             source={{ uri: imageUri }}
             style={styles.lookImage}
             resizeMode="cover"
-            onError={() => markImageFailed(item.id)}
+            onError={() => markImageFailed(item.id, imageUri)}
           />
         ) : (
           <View style={[styles.lookImage, styles.lookImageFallback]}>
@@ -596,7 +625,7 @@ export default function FeedScreen() {
                   source={{ uri: previewUri }}
                   style={styles.modalImageFull}
                   resizeMode="contain"
-                  onError={() => markImageFailed(selectedLook.id)}
+                  onError={() => markImageFailed(selectedLook.id, previewUri)}
                 />
               );
             })()}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../navigation/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
-import { getUserLooks } from '../lib/supabaseStorage';
+import { getUserLooks, getPublicUrlFor } from '../lib/supabaseStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -56,6 +56,7 @@ export default function MyLooksScreen({ navigation }: Props) {
   const [savedLooks, setSavedLooks] = useState<SavedLook[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewLook, setPreviewLook] = useState<SavedLook | null>(null);
+  const [failedImageIds, setFailedImageIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadSavedLooks();
@@ -73,10 +74,56 @@ export default function MyLooksScreen({ navigation }: Props) {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('MyLooks session user:', session?.user?.id || null)
+      // Helper to refresh signed/public URLs using stored storage references
+      const refreshUrls = async (looks: SavedLook[]): Promise<SavedLook[]> => {
+        const refreshed = await Promise.all(
+          looks.map(async (look) => {
+            const freshTransformed = await getPublicUrlFor(
+              look.transformedImageStorageBucket,
+              look.transformedImageStoragePath,
+            );
+            const freshOriginal = await getPublicUrlFor(
+              look.originalImageStorageBucket,
+              look.originalImageStoragePath,
+            );
+            if (freshTransformed || freshOriginal) {
+              return {
+                ...look,
+                transformedImage: freshTransformed || look.transformedImage,
+                originalImage: freshOriginal || look.originalImage,
+              };
+            }
+            return look;
+          })
+        );
+        return refreshed;
+      };
       if (session?.user?.id) {
         const remoteLooks = await getUserLooks(session.user.id);
         if (remoteLooks && remoteLooks.length) {
-          const mapped: SavedLook[] = remoteLooks.map((look: any) => ({
+          // Resolve fresh public URLs from storage references to avoid expired links
+          const withFreshUrls = await Promise.all(
+            remoteLooks.map(async (look: any) => {
+              const freshTransformed = await getPublicUrlFor(
+                look.transformed_image_storage_bucket,
+                look.transformed_image_storage_path,
+                look.transformed_image_url,
+              );
+              const freshOriginal = await getPublicUrlFor(
+                look.original_image_storage_bucket,
+                look.original_image_storage_path,
+                look.original_image_url,
+              );
+              return {
+                ...look,
+                transformed_image_url: freshTransformed || look.transformed_image_url,
+                original_image_url: freshOriginal || look.original_image_url,
+              };
+            })
+          );
+
+          const mapped: SavedLook[] = withFreshUrls.map((look: any) => ({
             id: look.id,
             originalImage: look.original_image_url,
             transformedImage: look.transformed_image_url,
@@ -96,16 +143,25 @@ export default function MyLooksScreen({ navigation }: Props) {
             transformedImageStorageBucket: look.transformed_image_storage_bucket ?? null,
             transformedImageStoragePath: look.transformed_image_storage_path ?? null,
           }));
-          setSavedLooks(mapped);
-          await AsyncStorage.setItem('savedLooks', JSON.stringify(mapped));
+          const updated = await refreshUrls(mapped);
+          console.log('MyLooks loaded counts:', { remote: updated.length, local: 0 })
+          console.log('MyLooks sample URLs:', updated.slice(0, 2).map((l) => ({ id: l.id, transformed: (l.transformedImage || '').toString().slice(0, 120), original: (l.originalImage || '').toString().slice(0, 120) })))
+          setSavedLooks(updated);
+          await AsyncStorage.setItem('savedLooks', JSON.stringify(updated));
           return;
         }
       }
 
       const saved = await AsyncStorage.getItem('savedLooks');
       if (saved) {
-        setSavedLooks(JSON.parse(saved));
+        const local: SavedLook[] = JSON.parse(saved);
+        const updated = await refreshUrls(local);
+        console.log('MyLooks loaded counts:', { remote: 0, local: updated.length })
+        console.log('MyLooks sample URLs:', updated.slice(0, 2).map((l) => ({ id: l.id, transformed: (l.transformedImage || '').toString().slice(0, 120), original: (l.originalImage || '').toString().slice(0, 120) })))
+        setSavedLooks(updated);
+        await AsyncStorage.setItem('savedLooks', JSON.stringify(updated));
       } else {
+        console.log('MyLooks loaded counts:', { remote: 0, local: 0 })
         setSavedLooks([]);
       }
     } catch (error) {
@@ -119,6 +175,16 @@ export default function MyLooksScreen({ navigation }: Props) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPreviewLook(look);
   };
+
+  const markImageFailed = useCallback(async (id: string, uri?: string) => {
+    try {
+      if (uri && uri.startsWith('file://')) {
+        const fs = await import('expo-file-system');
+        await fs.deleteAsync(uri, { idempotent: true });
+      }
+    } catch {}
+    setFailedImageIds((current) => (current[id] ? current : { ...current, [id]: true }));
+  }, []);
 
   const handleDeleteLook = async (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -151,7 +217,19 @@ export default function MyLooksScreen({ navigation }: Props) {
     );
   };
 
+  const selectLookImageUri = useCallback(
+    (look: SavedLook) => {
+      const preferOriginal = failedImageIds[look.id];
+      const candidates = preferOriginal
+        ? [look.originalImage, look.transformedImage]
+        : [look.transformedImage, look.originalImage];
+      return candidates.find((u) => !!u && typeof u === 'string') || '';
+    },
+    [failedImageIds]
+  );
+
   const renderLookItem = ({ item }: { item: SavedLook }) => {
+    const imageUri = selectLookImageUri(item);
     return (
       <TouchableOpacity
         style={styles.lookItem}
@@ -159,10 +237,17 @@ export default function MyLooksScreen({ navigation }: Props) {
         onLongPress={() => handleDeleteLook(item.id)}
         activeOpacity={0.8}
       >
-        <Image 
-          source={{ uri: item.transformedImage }}
-          style={styles.lookImage}
-        />
+        {imageUri ? (
+          <Image 
+            source={{ uri: imageUri }}
+            style={styles.lookImage}
+            onError={() => markImageFailed(item.id, imageUri)}
+          />
+        ) : (
+          <View style={[styles.lookImage, styles.lookImageFallback]}>
+            <Ionicons name="image-outline" size={20} color="#AAA" />
+          </View>
+        )}
         {/* Look info */}
         <View style={styles.lookInfo}>
           <View style={[styles.colorIndicator, { backgroundColor: item.colorHex }]} />

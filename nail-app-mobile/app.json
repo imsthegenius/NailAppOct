@@ -18,6 +18,10 @@
       "bundleIdentifier": "com.nailglow.app",
       "usesAppleSignIn": true,
       "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "itms-apps",
+          "itms"
+        ],
         "UIApplicationSceneManifest": {
           "UIApplicationSupportsMultipleScenes": false,
           "UIApplicationSupportsTabbedSceneCollection": false

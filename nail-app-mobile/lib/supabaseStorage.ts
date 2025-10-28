@@ -134,6 +134,50 @@ async function generatePublicUrl(bucket: string, path: string): Promise<string> 
   return normalisePublicUrl(data?.signedUrl)
 }
 
+function tryParseBucketPathFromUrl(url?: string | null): { bucket: string; path: string } | null {
+  if (!url) return null
+  try {
+    const u = new URL(url)
+    const anchor = '/storage/v1/object/'
+    const idx = u.pathname.indexOf(anchor)
+    if (idx === -1) return null
+    const rest = u.pathname.slice(idx + anchor.length)
+    const parts = rest.split('/').filter(Boolean)
+    if (!parts.length) return null
+    const first = parts[0]
+    const offset = first === 'public' || first === 'sign' || first === 'auth' ? 1 : 0
+    if (parts.length - offset < 2) return null
+    const bucket = parts[offset]
+    const path = parts.slice(offset + 1).join('/')
+    if (!bucket || !path) return null
+    return { bucket, path }
+  } catch {
+    return null
+  }
+}
+
+export async function getPublicUrlFor(
+  bucket?: string | null,
+  path?: string | null,
+  existingUrl?: string | null,
+): Promise<string | null> {
+  try {
+    if (!bucket || !path) {
+      const parsed = tryParseBucketPathFromUrl(existingUrl)
+      if (!parsed) return null
+      bucket = parsed.bucket
+      path = parsed.path
+    }
+    const url = await generatePublicUrl(bucket!, path!)
+    return url || null
+  } catch (e) {
+    if (__DEV__) {
+      console.warn('Failed to resolve public URL for storage object', { bucket, path, error: (e as any)?.message || e })
+    }
+    return null
+  }
+}
+
 async function resolveStorageUrl(value?: string | null): Promise<string> {
   const reference = parseStorageReference(value)
 
