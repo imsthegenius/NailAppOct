@@ -57,6 +57,7 @@ export default function MyLooksScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [previewLook, setPreviewLook] = useState<SavedLook | null>(null);
   const [failedImageIds, setFailedImageIds] = useState<Record<string, boolean>>({});
+  const [loadedImageIds, setLoadedImageIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadSavedLooks();
@@ -143,11 +144,19 @@ export default function MyLooksScreen({ navigation }: Props) {
             transformedImageStorageBucket: look.transformed_image_storage_bucket ?? null,
             transformedImageStoragePath: look.transformed_image_storage_path ?? null,
           }));
-          const updated = await refreshUrls(mapped);
+          const updated = await refreshUrls(mapped)
           console.log('MyLooks loaded counts:', { remote: updated.length, local: 0 })
           console.log('MyLooks sample URLs:', updated.slice(0, 2).map((l) => ({ id: l.id, transformed: (l.transformedImage || '').toString().slice(0, 120), original: (l.originalImage || '').toString().slice(0, 120) })))
-          setSavedLooks(updated);
-          await AsyncStorage.setItem('savedLooks', JSON.stringify(updated));
+          setSavedLooks(updated)
+          await AsyncStorage.setItem('savedLooks', JSON.stringify(updated))
+          // Warm cache for first few images to reduce initial black-to-image transition
+          try {
+            const toPrefetch = updated
+              .map((l) => l.transformedImage || l.originalImage)
+              .filter((u): u is string => !!u && /^https?:/i.test(u))
+              .slice(0, 9)
+            await Promise.all(toPrefetch.map((u) => Image.prefetch(u)))
+          } catch {}
           return;
         }
       }
@@ -219,17 +228,18 @@ export default function MyLooksScreen({ navigation }: Props) {
 
   const selectLookImageUri = useCallback(
     (look: SavedLook) => {
-      const preferOriginal = failedImageIds[look.id];
+      const preferOriginal = failedImageIds[look.id]
       const candidates = preferOriginal
         ? [look.originalImage, look.transformedImage]
-        : [look.transformedImage, look.originalImage];
-      return candidates.find((u) => !!u && typeof u === 'string') || '';
+        : [look.transformedImage, look.originalImage]
+      return candidates.find((u) => !!u && typeof u === 'string') || ''
     },
     [failedImageIds]
-  );
+  )
 
   const renderLookItem = ({ item }: { item: SavedLook }) => {
     const imageUri = selectLookImageUri(item);
+    const loaded = loadedImageIds[item.id] === true;
     return (
       <TouchableOpacity
         style={styles.lookItem}
@@ -238,11 +248,19 @@ export default function MyLooksScreen({ navigation }: Props) {
         activeOpacity={0.8}
       >
         {imageUri ? (
-          <Image 
-            source={{ uri: imageUri }}
-            style={styles.lookImage}
-            onError={() => markImageFailed(item.id, imageUri)}
-          />
+          <>
+            <Image
+              source={{ uri: imageUri }}
+              style={[styles.lookImage, !loaded && { opacity: 0.01 }]}
+              onError={() => markImageFailed(item.id, imageUri)}
+              onLoad={() => setLoadedImageIds((s) => (s[item.id] ? s : { ...s, [item.id]: true }))}
+            />
+            {!loaded && (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="image-outline" size={18} color="#AAA" />
+              </View>
+            )}
+          </>
         ) : (
           <View style={[styles.lookImage, styles.lookImageFallback]}>
             <Ionicons name="image-outline" size={20} color="#AAA" />
@@ -306,13 +324,7 @@ export default function MyLooksScreen({ navigation }: Props) {
 
         <Text style={styles.subheading}>Everything you’ve saved lives here. Tap a look to preview it full screen.</Text>
 
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#fff" />
-          </View>
-        ) : savedLooks.length === 0 ? (
-          <EmptyState />
-        ) : (
+        {savedLooks.length > 0 ? (
           <FlatList
             data={savedLooks}
             renderItem={renderLookItem}
@@ -321,7 +333,18 @@ export default function MyLooksScreen({ navigation }: Props) {
             contentContainerStyle={styles.gridContainer}
             showsVerticalScrollIndicator={false}
             ItemSeparatorComponent={() => <View style={styles.gridSpacer} />}
+            initialNumToRender={15}
+            windowSize={10}
+            maxToRenderPerBatch={15}
+            updateCellsBatchingPeriod={32}
+            removeClippedSubviews
           />
+        ) : loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#fff" />
+          </View>
+        ) : (
+          <EmptyState />
         )}
 
         {savedLooks.length > 0 && (
@@ -550,5 +573,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#2A0B20',
+  },
+  imagePlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 14,
   },
 });

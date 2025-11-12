@@ -3,10 +3,16 @@
     "name": "nail-app-mobile",
     "slug": "nail-app-mobile",
     "version": "1.0.0",
+    "runtimeVersion": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
+    "updates": {
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/61025c3b-d62a-4855-b314-522786643a6d"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -17,8 +23,11 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.nailglow.app",
       "usesAppleSignIn": true,
+      "buildNumber": "5",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
+          "itms-apps",
+          "itms",
           "itms-apps",
           "itms"
         ],
@@ -26,9 +35,12 @@
           "UIApplicationSupportsMultipleScenes": false,
           "UIApplicationSupportsTabbedSceneCollection": false
         },
+        "UIRequiresFullScreen": true,
+        "CFBundleDisplayName": "NailGlow",
+        "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "NailGlow needs camera access to capture photos of your nails for virtual nail polish try-on and AI transformation.",
         "NSPhotoLibraryUsageDescription": "NailGlow needs photo library access to select nail photos and save your transformed designs.",
-        "NSPhotoLibraryAddUsageDescription": "NailGlow saves your transformed nail designs to your photo library so you can share them with your nail technician.",
+        "NSMicrophoneUsageDescription": "NailGlow may request microphone access when recording videos during future features.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false,
           "NSExceptionDomains": {
@@ -46,9 +58,6 @@
               "NSExceptionAllowsInsecureHTTPLoads": false,
               "NSIncludesSubdomains": true,
               "NSRequiresCertificateTransparency": false
-            },
-            "localhost": {
-              "NSExceptionAllowsInsecureHTTPLoads": true
             }
           }
         }
@@ -63,6 +72,7 @@
       "package": "com.nailglow.app",
       "permissions": [
         "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],

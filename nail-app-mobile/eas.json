@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 8.0.0"
+    "version": ">= 8.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "preview": {
@@ -11,7 +12,8 @@
       "ios": {
         "resourceClass": "m-medium",
         "image": "sdk-53"
-      }
+      },
+      "channel": "preview"
     },
     "payments": {
       "distribution": "internal",
@@ -21,12 +23,15 @@
       "ios": {
         "resourceClass": "m-medium",
         "image": "sdk-53"
-      }
+      },
+      "channel": "payments"
     },
     "production": {
       "ios": {
-        "resourceClass": "m-medium"
-      }
+        "resourceClass": "m-medium",
+        "image": "sdk-53"
+      },
+      "channel": "production"
     }
   },
   "submit": {

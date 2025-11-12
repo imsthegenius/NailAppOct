@@ -1,6 +1,6 @@
-import { PostgrestError } from '@supabase/supabase-js';
-import { supabase } from '../../lib/supabase';
-import type { CanonicalFinish } from '../state/useSelectionStore';
+import { PostgrestError } from '@supabase/supabase-js'
+import { supabase } from '../../lib/supabase'
+import type { CanonicalFinish } from '../state/useSelectionStore'
 
 export interface ColorCatalogEntry {
   colorId: string;
@@ -44,7 +44,74 @@ export interface CategorySummary {
   shadeCount: number;
 }
 
-const DEFAULT_PAGE_SIZE = 24;
+const DEFAULT_PAGE_SIZE = 24
+
+// Lightweight in-memory cache to avoid re-querying Supabase on every filter tweak
+type CacheKey = string
+type CacheEntry = {
+  at: number
+  result: CatalogResult<ColorCatalogEntry>
+}
+
+const CATALOG_CACHE = new Map<CacheKey, CacheEntry>()
+const CATEGORY_SUMMARIES_CACHE = new Map<string, { at: number; data: CategorySummary[] }>()
+const COLLECTIONS_CACHE = new Map<string, { at: number; data: string[] }>()
+
+// Default TTL: 10 minutes for lists; cheap to refresh but keeps UX snappy while browsing
+const TTL_MS = 10 * 60 * 1000
+const MAX_CACHE_ITEMS = 80
+
+function cacheKeyFor(filters: CatalogFilters, page: number, pageSize: number): CacheKey {
+  // Ensure stable key ordering
+  const keyObj = {
+    brand: filters.brand ?? null,
+    productLine: filters.productLine ?? null,
+    finish: filters.finish ?? 'all',
+    collection: filters.collection ?? 'All',
+    category: filters.category ?? 'All',
+    hasSwatch: !!filters.hasSwatch,
+    isTrending: !!filters.isTrending,
+    search: filters.search?.trim() || null,
+    page,
+    pageSize,
+  }
+  return JSON.stringify(keyObj)
+}
+
+function getCached(key: CacheKey): CatalogResult<ColorCatalogEntry> | null {
+  const hit = CATALOG_CACHE.get(key)
+  if (!hit) return null
+  if (Date.now() - hit.at > TTL_MS) {
+    CATALOG_CACHE.delete(key)
+    return null
+  }
+  // Bump recency (poor-man’s LRU)
+  CATALOG_CACHE.delete(key)
+  CATALOG_CACHE.set(key, hit)
+  return hit.result
+}
+
+function setCached(key: CacheKey, result: CatalogResult<ColorCatalogEntry>) {
+  if (CATALOG_CACHE.size >= MAX_CACHE_ITEMS) {
+    // Evict oldest
+    const first = CATALOG_CACHE.keys().next().value as CacheKey | undefined
+    if (first) CATALOG_CACHE.delete(first)
+  }
+  CATALOG_CACHE.set(key, { at: Date.now(), result })
+}
+
+export async function prefetchColorCatalog(
+  filters: CatalogFilters,
+  page = 0,
+  pageSize = DEFAULT_PAGE_SIZE
+): Promise<void> {
+  try {
+    const key = cacheKeyFor(filters, page, pageSize)
+    if (getCached(key)) return
+    const res = await fetchColorCatalog(filters, page, pageSize)
+    setCached(key, res)
+  } catch {}
+}
 
 function mapEntry(row: any): ColorCatalogEntry {
   return {
@@ -73,6 +140,11 @@ export async function fetchColorCatalog(
   page = 0,
   pageSize = DEFAULT_PAGE_SIZE
 ): Promise<CatalogResult<ColorCatalogEntry>> {
+  const key = cacheKeyFor(filters, page, pageSize)
+  const cached = getCached(key)
+  if (cached) {
+    return cached
+  }
   let query = supabase
     .from('color_catalog_entries')
     .select(
@@ -114,8 +186,8 @@ export async function fetchColorCatalog(
     query = query.not('swatch_url', 'is', null);
   }
 
-  if (filters.search) {
-    const term = `%${filters.search.trim()}%`;
+  if (filters.search && filters.search.trim().length >= 2) {
+    const term = `%${filters.search.trim()}%`
     query = query.or(`shade_name.ilike.${term},color_name.ilike.${term}`);
   }
 
@@ -123,18 +195,31 @@ export async function fetchColorCatalog(
   const to = from + pageSize - 1;
   query = query.range(from, to);
 
-  const { data, error, count } = await query;
+  const { data, error, count } = await query
 
-  return {
+  const result = {
     data: (data ?? []).map(mapEntry),
     count: count ?? 0,
     error,
-  };
+  }
+
+  // Only cache successful responses
+  if (!error) {
+    setCached(key, result)
+  }
+
+  return result
 }
 
 export async function fetchCategorySummaries(
   brand?: string
 ): Promise<{ data: CategorySummary[]; error: PostgrestError | null }> {
+  const cacheKey = brand ? `brand:${brand}` : 'all'
+  const cached = CATEGORY_SUMMARIES_CACHE.get(cacheKey)
+  if (cached && Date.now() - cached.at < TTL_MS) {
+    return { data: cached.data, error: null }
+  }
+
   let query = supabase
     .from('color_category_distribution')
     .select('brand, canonical_category, shade_count');
@@ -143,20 +228,19 @@ export async function fetchCategorySummaries(
     query = query.eq('brand', brand);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await query
 
   if (error) {
     return { data: [], error };
   }
 
   if (brand) {
-    return {
-      data: (data ?? []).map((row: any) => ({
-        category: row.canonical_category,
-        shadeCount: row.shade_count ?? 0,
-      })),
-      error: null,
-    };
+    const mapped = (data ?? []).map((row: any) => ({
+      category: row.canonical_category,
+      shadeCount: row.shade_count ?? 0,
+    }))
+    CATEGORY_SUMMARIES_CACHE.set(cacheKey, { at: Date.now(), data: mapped })
+    return { data: mapped, error: null }
   }
 
   const totals = new Map<string, number>();
@@ -169,10 +253,9 @@ export async function fetchCategorySummaries(
     totals.set(category, (totals.get(category) ?? 0) + count);
   });
 
-  return {
-    data: Array.from(totals.entries()).map(([category, shadeCount]) => ({ category, shadeCount })),
-    error: null,
-  };
+  const mapped = Array.from(totals.entries()).map(([category, shadeCount]) => ({ category, shadeCount }))
+  CATEGORY_SUMMARIES_CACHE.set(cacheKey, { at: Date.now(), data: mapped })
+  return { data: mapped, error: null }
 }
 
 export async function fetchCollections(
@@ -181,6 +264,12 @@ export async function fetchCollections(
 ): Promise<{ data: string[]; error: PostgrestError | null }> {
   if (!brand) {
     return { data: [], error: null };
+  }
+
+  const key = JSON.stringify({ brand, productLine: productLine ?? 'All' })
+  const cached = COLLECTIONS_CACHE.get(key)
+  if (cached && Date.now() - cached.at < TTL_MS) {
+    return { data: cached.data, error: null }
   }
 
   let query = supabase
@@ -195,11 +284,12 @@ export async function fetchCollections(
     query = query.eq('product_line', productLine);
   }
 
-  const { data, error } = await query;
-  return {
-    data: (data ?? []).map((row) => row.collection).filter(Boolean),
-    error,
-  };
+  const { data, error } = await query
+  const result = (data ?? []).map((row) => row.collection).filter(Boolean)
+  if (!error) {
+    COLLECTIONS_CACHE.set(key, { at: Date.now(), data: result })
+  }
+  return { data: result, error }
 }
 
 export async function fetchVariantsForColor(colorId: string): Promise<CatalogResult<ColorCatalogEntry>> {

@@ -9,7 +9,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>nail-app-mobile</string>
+    <string>NailGlow</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -34,14 +34,13 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>5</string>
     <key>LSApplicationQueriesSchemes</key>
     <array>
       <string>itms-apps</string>
       <string>itms</string>
     </array>
-    <key>LSMinimumSystemVersion</key>
-    <string>12.0</string>
+    
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSAppTransportSecurity</key>
@@ -77,21 +76,14 @@
           <key>NSRequiresCertificateTransparency</key>
           <false/>
         </dict>
-        <key>localhost</key>
-        <dict>
-          <key>NSExceptionAllowsInsecureHTTPLoads</key>
-          <true/>
-        </dict>
+        
       </dict>
     </dict>
     <key>NSCameraUsageDescription</key>
     <string>NailGlow needs camera access to capture photos of your nails for virtual nail polish try-on and AI transformation.</string>
-    <key>NSFaceIDUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
-    <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>NailGlow saves your transformed nail designs to your photo library so you can share them with your nail technician.</string>
+    <string>NailGlow may request microphone access when recording videos during future features.</string>
+    
     <key>NSPhotoLibraryUsageDescription</key>
     <string>NailGlow needs photo library access to select nail photos and save your transformed designs.</string>
     <key>UIApplicationSceneManifest</key>
@@ -108,7 +100,7 @@
       <string>arm64</string>
     </array>
     <key>UIRequiresFullScreen</key>
-    <false/>
+    <true/>
     <key>UIStatusBarStyle</key>
     <string>UIStatusBarStyleDefault</string>
     <key>UISupportedInterfaceOrientations</key>
@@ -119,6 +111,8 @@
     <key>UIUserInterfaceStyle</key>
     <string>Light</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
+    <false/>
+    <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
   </dict>
 </plist>

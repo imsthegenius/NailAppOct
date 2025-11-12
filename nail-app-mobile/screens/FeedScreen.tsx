@@ -72,6 +72,7 @@ export default function FeedScreen() {
   const maxCacheFiles = cacheSettings.maxFiles;
   const maxCacheBytes = cacheSettings.maxBytes;
   const [failedImageIds, setFailedImageIds] = useState<Record<string, boolean>>({});
+  const [loadedImageIds, setLoadedImageIds] = useState<Record<string, boolean>>({});
   const cycleCachePolicy = useCallback(() => {
     setCachePolicy((current) => (current === 'standard' ? 'compact' : 'standard'));
   }, []);
@@ -372,25 +373,34 @@ export default function FeedScreen() {
   }, [cacheDir, pruneCacheDirectory]);
 
   const loadSavedLooks = async (showSpinner: boolean = true) => {
-    if (showSpinner) {
-      setLoading(true);
-    }
+    if (showSpinner) setLoading(true)
     try {
       const raw = await AsyncStorage.getItem('savedLooks');
       const localLooks: SavedLook[] = raw ? JSON.parse(raw) : [];
       if (localLooks.length) {
-        // Show local placeholders but keep spinner until remote merge completes
-        setSavedLooks(localLooks);
+        // Show local looks immediately while remote merge proceeds
+        setSavedLooks(localLooks)
+        setLoading(false)
       }
 
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.id) {
         const remoteLooks = await getUserLooks(session.user.id);
         const mapped = remoteLooks.map(mapRemoteLook);
-        const merged = mergeLooks(mapped, localLooks);
-        setSavedLooks(merged);
-        await AsyncStorage.setItem('savedLooks', JSON.stringify(merged));
-        ensureCachedAssets(merged).catch(() => {});
+        const merged = mergeLooks(mapped, localLooks)
+        setSavedLooks(merged)
+        await AsyncStorage.setItem('savedLooks', JSON.stringify(merged))
+
+        // Warm image cache for the first few items to avoid black flashes
+        try {
+          const toPrefetch = merged
+            .map((l) => l.transformedImage || l.originalImage)
+            .filter((u): u is string => !!u && /^https?:/i.test(u))
+            .slice(0, 8)
+          await Promise.all(toPrefetch.map((u) => Image.prefetch(u)))
+        } catch {}
+
+        ensureCachedAssets(merged).catch(() => {})
         return;
       }
 
@@ -401,7 +411,7 @@ export default function FeedScreen() {
     } catch (error) {
       console.error('Error loading saved looks:', error);
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   };
 
@@ -426,26 +436,35 @@ export default function FeedScreen() {
 
   const selectLookImageUri = useCallback(
     (look: SavedLook) => {
-      // Remote-first strategy to avoid reusing corrupted local cache files.
-      const preferOriginal = failedImageIds[look.id];
-      const candidates = preferOriginal
-        ? [
-            look.originalImage,        // https original first
-            look.transformedImage,     // https transformed
-            look.localOriginalImage,   // local fallbacks
-            look.localTransformedImage,
-          ]
-        : [
-            look.transformedImage,     // https transformed first
-            look.originalImage,        // https original
-            look.localTransformedImage,// local fallbacks
-            look.localOriginalImage,
-          ];
+      // Prefer validated local cache when present to eliminate black flicker
+      const preferOriginal = failedImageIds[look.id]
+      const localFirst = [
+        look.localTransformedImage,
+        look.localOriginalImage,
+        look.transformedImage,
+        look.originalImage,
+      ]
+      const remoteFirstPreferOriginal = [
+        look.originalImage,
+        look.transformedImage,
+        look.localOriginalImage,
+        look.localTransformedImage,
+      ]
+      const remoteFirst = [
+        look.transformedImage,
+        look.originalImage,
+        look.localTransformedImage,
+        look.localOriginalImage,
+      ]
 
-      return candidates.find((value): value is string => Boolean(value && typeof value === 'string')) ?? '';
+      const candidates = (look.localTransformedImage || look.localOriginalImage)
+        ? localFirst
+        : (preferOriginal ? remoteFirstPreferOriginal : remoteFirst)
+
+      return candidates.find((value): value is string => Boolean(value && typeof value === 'string')) ?? ''
     },
     [failedImageIds]
-  );
+  )
 
   useEffect(() => {
     if (!selectedLook) {
@@ -461,6 +480,7 @@ export default function FeedScreen() {
   const renderLookItem = ({ item, index }: { item: SavedLook; index: number }) => {
     const isLeft = index % 2 === 0;
     const imageUri = selectLookImageUri(item);
+    const loaded = loadedImageIds[item.id] === true;
     if (index < 2) {
       console.log('Feed imageUri', { id: item.id, imageUri: (imageUri || '').slice(0, 120) })
     }
@@ -472,13 +492,21 @@ export default function FeedScreen() {
         activeOpacity={0.9}
       >
         {imageUri ? (
-          <Image 
-            key={`${item.id}-${failedImageIds[item.id] ? 'fallback' : 'primary'}`}
-            source={{ uri: imageUri }}
-            style={styles.lookImage}
-            resizeMode="cover"
-            onError={() => markImageFailed(item.id, imageUri)}
-          />
+          <>
+            <Image
+              key={`${item.id}-${failedImageIds[item.id] ? 'fallback' : 'primary'}`}
+              source={{ uri: imageUri }}
+              style={[styles.lookImage, !loaded && { opacity: 0.01 }]}
+              resizeMode="cover"
+              onError={() => markImageFailed(item.id, imageUri)}
+              onLoad={() => setLoadedImageIds((s) => (s[item.id] ? s : { ...s, [item.id]: true }))}
+            />
+            {!loaded && (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="image-outline" size={20} color="rgba(255,255,255,0.65)" />
+              </View>
+            )}
+          </>
         ) : (
           <View style={[styles.lookImage, styles.lookImageFallback]}>
             <Ionicons name="image-outline" size={24} color="rgba(255,255,255,0.6)" />
@@ -568,13 +596,7 @@ export default function FeedScreen() {
       </View>
 
       {/* Content */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.accent} />
-        </View>
-      ) : savedLooks.length === 0 ? (
-        <EmptyState />
-      ) : (
+      {savedLooks.length > 0 ? (
         <FlatList
           data={savedLooks}
           renderItem={renderLookItem}
@@ -582,7 +604,18 @@ export default function FeedScreen() {
           numColumns={2}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.grid}
+          initialNumToRender={12}
+          windowSize={10}
+          maxToRenderPerBatch={12}
+          updateCellsBatchingPeriod={32}
+          removeClippedSubviews
         />
+      ) : loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.accent} />
+        </View>
+      ) : (
+        <EmptyState />
       )}
       
       {/* Floating Liquid Glass Tab Bar */}
@@ -653,7 +686,7 @@ export default function FeedScreen() {
                 onPress={closePreview}
                 accessibilityLabel="Close full screen preview"
                 accessibilityRole="button"
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
               >
                 <Ionicons name="close" size={28} color="#fff" />
               </TouchableOpacity>
@@ -889,7 +922,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'flex-end',
-    marginTop: 8,
+    alignSelf: 'flex-start',
+    marginTop: 12,
+  },
+  imagePlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
   },
 });

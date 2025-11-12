@@ -9,6 +9,7 @@ import {
   Dimensions,
   Animated,
   Platform,
+  InteractionManager,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -41,6 +42,8 @@ export default function CameraScreen({ navigation }: Props) {
   const [tabBarCollapsed, setTabBarCollapsed] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [hasLaidOut, setHasLaidOut] = useState(false);
+  const [canActivateCamera, setCanActivateCamera] = useState(false);
+  const [cameraRetry, setCameraRetry] = useState(0);
   const cameraRef = useRef<CameraView>(null);
   const hideTabBarTimer = useRef<NodeJS.Timeout>();
   const hasLaidOutRef = useRef(false);
@@ -76,6 +79,13 @@ export default function CameraScreen({ navigation }: Props) {
     }
   }, [permission, requestPermission]);
 
+  // If permission object exists but is not yet granted and can ask again, prompt once in release
+  useEffect(() => {
+    if (permission && !permission.granted && permission.canAskAgain) {
+      requestPermission().catch(() => {});
+    }
+  }, [permission?.granted, permission?.canAskAgain, requestPermission]);
+
   // Auto-hide tab bar when capturing
   useEffect(() => {
     if (isCapturing) {
@@ -96,6 +106,47 @@ export default function CameraScreen({ navigation }: Props) {
       setIsCameraReady(false);
     }
   }, [shouldRenderCamera, isCameraReady]);
+
+  // Defer the initial camera activation slightly until interactions settle.
+  useEffect(() => {
+    if (permission?.granted && isFocused && hasLaidOut) {
+      let mounted = true;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const handle: any = InteractionManager.runAfterInteractions(() => {
+        timeoutId = setTimeout(() => {
+          if (mounted) setCanActivateCamera(true);
+        }, 250);
+      });
+      return () => {
+        mounted = false;
+        setCanActivateCamera(false);
+        if (timeoutId) clearTimeout(timeoutId);
+        try { handle?.cancel?.(); } catch {}
+      };
+    } else {
+      setCanActivateCamera(false);
+    }
+  }, [permission?.granted, isFocused, hasLaidOut]);
+
+  // Fallback: if layout event never fires on some devices, force-enable after a short delay once focused with permission.
+  useEffect(() => {
+    if (permission?.granted && isFocused && !hasLaidOut) {
+      const t = setTimeout(() => setHasLaidOut(true), 600);
+      return () => clearTimeout(t);
+    }
+  }, [permission?.granted, isFocused, hasLaidOut]);
+
+  // If camera fails to become ready shortly after activation, force a remount once.
+  useEffect(() => {
+    if (shouldRenderCamera && canActivateCamera && !isCameraReady) {
+      const timer = setTimeout(() => {
+        if (!isCameraReady) {
+          setCameraRetry((n) => n + 1);
+        }
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldRenderCamera, canActivateCamera, isCameraReady]);
 
   const handleLayout = useCallback(() => {
     if (!hasLaidOutRef.current) {
@@ -265,10 +316,11 @@ export default function CameraScreen({ navigation }: Props) {
       {/* Full screen camera */}
       {shouldRenderCamera ? (
         <CameraView 
+          key={`cam-${cameraRetry}`}
           style={StyleSheet.absoluteFillObject} 
           facing={facing}
           ref={cameraRef}
-          active={shouldRenderCamera}
+          active={shouldRenderCamera && canActivateCamera}
           onCameraReady={() => {
             if (__DEV__) {
               console.log('Camera is ready');
@@ -285,10 +337,20 @@ export default function CameraScreen({ navigation }: Props) {
           <ActivityIndicator size="small" color="#e70a5a" />
         </View>
       )}
+
+      {/* Diagnostics overlay for TestFlight (enable with EXPO_PUBLIC_DIAGNOSTICS=1) */}
+      {((globalThis as any)?.process?.env?.EXPO_PUBLIC_DIAGNOSTICS === '1') && (
+        <View style={{ position: 'absolute', top: 8, left: 8, paddingVertical: 6, paddingHorizontal: 8, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 8 }}>
+          <Text style={{ color: '#fff', fontSize: 11 }}>perm: {String(!!permission)} / granted: {String(!!permission?.granted)}</Text>
+          <Text style={{ color: '#fff', fontSize: 11 }}>focused: {String(isFocused)} laidOut: {String(hasLaidOut)}</Text>
+          <Text style={{ color: '#fff', fontSize: 11 }}>canActivate: {String(canActivateCamera)} ready: {String(isCameraReady)}</Text>
+          <Text style={{ color: '#fff', fontSize: 11 }}>retry: {String(cameraRetry)}</Text>
+        </View>
+      )}
       
       {/* Color/Shape Overlay on Camera Preview */}
       {(selectedColor || (selectedShape && selectedShape.id !== 'keep')) && (
-        <View style={styles.selectionOverlay}>
+        <View style={styles.selectionOverlay} pointerEvents="none">
           <NativeLiquidGlass
             style={styles.selectionBadge}
             intensity={58}
@@ -413,6 +475,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+    alignItems: 'stretch',
   },
   message: {
     textAlign: 'center',

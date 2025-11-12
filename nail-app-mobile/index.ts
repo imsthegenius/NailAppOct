@@ -3,6 +3,7 @@ import 'react-native-gesture-handler';
 // Polyfills must be imported before anything else
 import 'react-native-get-random-values';
 import 'react-native-url-polyfill/auto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Early runtime probes and global JS error handler (helps surface Release issues)
 try {
@@ -18,6 +19,16 @@ try {
         // eslint-disable-next-line no-console
         console.log('GLOBAL_JS_STACK', String((e as any).stack));
       }
+      // Persist a lightweight diagnostic for next launch (best-effort)
+      try {
+        const payload = JSON.stringify({
+          message: String((e as any)?.message || e),
+          stack: (e as any)?.stack ? String((e as any).stack) : undefined,
+          isFatal: !!isFatal,
+          ts: Date.now(),
+        });
+        void AsyncStorage.setItem('diagnostic:lastError', payload).catch(() => {});
+      } catch {}
     } catch {}
     prev && prev(e, isFatal);
   });
@@ -30,4 +41,3 @@ import App from './App';
 // It also ensures that whether you load the app in Expo Go or in a native build,
 // the environment is set up appropriately
 registerRootComponent(App);
-

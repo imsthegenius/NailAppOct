@@ -110,16 +110,26 @@ function parseStorageReference(value?: string | null): StorageReference | null {
   return { bucket, path }
 }
 
+// Simple memo cache for generated public/signed URLs to avoid redundant work
+const URL_CACHE = new Map<string, { at: number; url: string; ttl: number }>()
+
 async function generatePublicUrl(bucket: string, path: string): Promise<string> {
   if (!path) {
     return ''
   }
 
+  const cacheKey = `${bucket}/${path}`
+  const now = Date.now()
+  const cached = URL_CACHE.get(cacheKey)
+  if (cached && now - cached.at < cached.ttl) {
+    return cached.url
+  }
+
   if (PUBLIC_BUCKETS.has(bucket)) {
-    const {
-      data: { publicUrl }
-    } = supabaseStorage.storage.from(bucket).getPublicUrl(path)
-    return normalisePublicUrl(publicUrl)
+    const { data: { publicUrl } } = supabaseStorage.storage.from(bucket).getPublicUrl(path)
+    const normalised = normalisePublicUrl(publicUrl)
+    URL_CACHE.set(cacheKey, { at: now, url: normalised, ttl: 24 * 60 * 60 * 1000 })
+    return normalised
   }
 
   await syncStorageAuth()
@@ -131,7 +141,10 @@ async function generatePublicUrl(bucket: string, path: string): Promise<string> 
     throw error
   }
 
-  return normalisePublicUrl(data?.signedUrl)
+  const signed = normalisePublicUrl(data?.signedUrl)
+  // Signed URL TTL mirrors request above (30 days)
+  URL_CACHE.set(cacheKey, { at: now, url: signed, ttl: 30 * 24 * 60 * 60 * 1000 })
+  return signed
 }
 
 function tryParseBucketPathFromUrl(url?: string | null): { bucket: string; path: string } | null {

@@ -26,6 +26,7 @@ import { LiquidGlassTabBar } from '../components/ui/LiquidGlassTabBar';
 import { NativeLiquidGlass } from '../components/ui/NativeLiquidGlass';
 import { useThemeColors } from '../hooks/useColorScheme';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
+import { PAYWALL_DISABLED } from '../lib/paywall';
 import {
   CANONICAL_FINISHES,
   updateSelectedColor,
@@ -34,7 +35,7 @@ import {
 } from '../lib/selectedData';
 
 import type { CategorySummary, ColorCatalogEntry } from '../src/services/colorCatalog';
-import { fetchCategorySummaries, fetchColorCatalog } from '../src/services/colorCatalog';
+import { fetchCategorySummaries, fetchColorCatalog, prefetchColorCatalog } from '../src/services/colorCatalog'
 import type { MainStackParamList } from '../navigation/types';
 import { spacing, radii } from '../src/theme/tokens';
 
@@ -175,8 +176,10 @@ const DesignScreen = () => {
   const [initialising, setInitialising] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingPhoto, setPendingPhoto] = useState<{ imageUri: string; base64?: string } | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState('')
+  // Track which categories we’ve already prefetched to avoid duplicate work
+  const prefetchedCategoryIdsRef = useRef<Set<string>>(new Set())
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -187,10 +190,11 @@ const DesignScreen = () => {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setAppliedSearch(searchTerm.trim());
-    }, 250);
-    return () => clearTimeout(handler);
-  }, [searchTerm]);
+      const trimmed = searchTerm.trim()
+      setAppliedSearch(trimmed.length >= 2 ? trimmed : '')
+    }, 250)
+    return () => clearTimeout(handler)
+  }, [searchTerm])
 
   const effectiveBrand = useMemo(() => {
     if (activePrimaryFilter === 'all' || isTrendingActive) {
@@ -249,8 +253,12 @@ const DesignScreen = () => {
         setEntries((current) => (replace ? data : [...current, ...data]));
         setTotalCount(count);
       }
-      setLoading(false);
-      setInitialising(false);
+      setLoading(false)
+      setInitialising(false)
+
+      if (!catalogError) {
+        prefetchColorCatalog(filters, nextPage + 1, PAGE_SIZE).catch(() => {})
+      }
     },
     [filters]
   );
@@ -301,7 +309,6 @@ const DesignScreen = () => {
   }, [categorySummaries, category]);
 
   useEffect(() => {
-    setEntries([]);
     setPage(0);
     loadColors(0, true);
   }, [filters, loadColors]);
@@ -367,6 +374,20 @@ const DesignScreen = () => {
     }
   }, [isPremium]);
 
+  // When paywall is bypassed, ensure a default shape is selected for new users
+  useEffect(() => {
+    if (PAYWALL_DISABLED) {
+      const current = useSelectionStore.getState().selectedShape;
+      if (!current) {
+        const almond = SHAPES.find((s) => s.id === 'almond');
+        if (almond) {
+          const length = computeLengthForShape(almond.id);
+          updateSelectedNail(almond, length);
+        }
+      }
+    }
+  }, []);
+
   const handleBrandSelect = (option: string) => {
     Haptics.selectionAsync();
     setBrand(option as typeof BRAND_OPTIONS[number]);
@@ -379,7 +400,7 @@ const DesignScreen = () => {
   };
 
   const handleShapeSelect = async (shape: { id: string; name: string; icon?: string }) => {
-    if (!isPremium && shape.id !== 'almond' && shape.id !== 'keep') {
+    if (!isPremium && !PAYWALL_DISABLED && shape.id !== 'almond' && shape.id !== 'keep') {
       // Double-check RevenueCat entitlement in case Supabase sync is lagging
       try {
         const mod: any = await import('react-native-purchases');
@@ -521,6 +542,41 @@ const DesignScreen = () => {
     return items;
   }, [familyOptions, loadingCategories]);
 
+  // Proactive prefetch for top category candidates so the first tap doesn’t show a spinner.
+  useEffect(() => {
+    // Skip when Trending is active or when user is searching; category lanes aren’t primary then.
+    if (isTrendingActive || appliedSearch) return;
+    if (!familyOptions.length) return;
+
+    const PREFETCH_CATEGORY_COUNT = 6;
+    const topCategories = familyOptions.slice(0, PREFETCH_CATEGORY_COUNT);
+    topCategories.forEach((cat) => {
+      if (prefetchedCategoryIdsRef.current.has(cat.id)) return
+      const prefetchFilters = {
+        ...filters,
+        category: cat.id,
+        isTrending: false,
+      } as typeof filters;
+      prefetchColorCatalog(prefetchFilters, 0, PAGE_SIZE).catch(() => {})
+      prefetchedCategoryIdsRef.current.add(cat.id)
+    });
+  }, [
+    // When these change, the category results change – refresh the prefetch set.
+    effectiveBrand,
+    productLine,
+    finishFilter,
+    collection,
+    hasSwatch,
+    isTrendingActive,
+    appliedSearch,
+    familyOptions,
+  ]);
+
+  // Reset prefetch set when primary filter context changes materially
+  useEffect(() => {
+    prefetchedCategoryIdsRef.current = new Set()
+  }, [effectiveBrand, productLine, finishFilter, collection, hasSwatch])
+
   const categoryScrollResetKey = useMemo(
     () => `${effectiveBrand ?? 'all'}|${isTrendingActive ? 1 : 0}|${categoryListData.length}`,
     [effectiveBrand, isTrendingActive, categoryListData.length]
@@ -592,6 +648,14 @@ const DesignScreen = () => {
         scrollResetKey={categoryScrollResetKey}
         searchTerm={searchTerm}
         onSearchTermChange={setSearchTerm}
+        canPrefetchCategories={!isTrendingActive && !appliedSearch}
+        hasPrefetchedCategory={(id) => prefetchedCategoryIdsRef.current.has(id)}
+        prefetchCategory={(id) => {
+          if (prefetchedCategoryIdsRef.current.has(id)) return
+          const prefetchFilters = { ...filters, category: id, isTrending: false } as typeof filters
+          prefetchColorCatalog(prefetchFilters, 0, PAGE_SIZE).catch(() => {})
+          prefetchedCategoryIdsRef.current.add(id)
+        }}
       />
     ),
     [
@@ -605,6 +669,9 @@ const DesignScreen = () => {
       handleCategoryClear,
       categoryScrollResetKey,
       searchTerm,
+      isTrendingActive,
+      appliedSearch,
+      filters,
     ]
   );
 
@@ -689,6 +756,12 @@ const DesignScreen = () => {
           columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          // Virtualization tuning to improve scroll/initial render performance
+          initialNumToRender={18}
+          windowSize={12}
+          maxToRenderPerBatch={18}
+          updateCellsBatchingPeriod={32}
+          removeClippedSubviews
           onEndReachedThreshold={0.2}
           onEndReached={loadMore}
         />
@@ -728,7 +801,7 @@ const DesignScreen = () => {
             >
               {SHAPES.map((shape) => {
                 const active = selectedShape?.id === shape.id;
-                const locked = !isPremium && shape.id !== 'almond' && shape.id !== 'keep';
+              const locked = !PAYWALL_DISABLED && !isPremium && shape.id !== 'almond' && shape.id !== 'keep';
                 const label = shape.id === 'keep' ? 'None' : shape.name;
                 return (
                   <TouchableOpacity
@@ -796,6 +869,10 @@ type DesignListHeaderProps = {
   scrollResetKey: string;
   searchTerm: string;
   onSearchTermChange: (value: string) => void;
+  // Prefetch controls provided by parent to avoid referencing parent state here
+  canPrefetchCategories: boolean;
+  hasPrefetchedCategory: (id: string) => boolean;
+  prefetchCategory: (id: string) => void;
 };
 
 const DesignListHeader = React.memo((props: DesignListHeaderProps) => {
@@ -812,6 +889,9 @@ const DesignListHeader = React.memo((props: DesignListHeaderProps) => {
     scrollResetKey,
     searchTerm,
     onSearchTermChange,
+    canPrefetchCategories,
+    hasPrefetchedCategory,
+    prefetchCategory,
   } = props;
 
   const theme = useThemeColors();
@@ -1004,6 +1084,16 @@ const DesignListHeader = React.memo((props: DesignListHeaderProps) => {
             directionalLockEnabled
             keyExtractor={(item) => item.id}
             extraData={effectiveCategory}
+            onViewableItemsChanged={useRef(({ viewableItems }: { viewableItems: Array<{ item: CategoryListItem }> }) => {
+              if (!canPrefetchCategories) return
+              for (const v of viewableItems) {
+                const it = v.item
+                if (!it || it.kind !== 'category') continue
+                if (hasPrefetchedCategory(it.id)) continue
+                prefetchCategory(it.id)
+              }
+            }).current}
+            viewabilityConfig={useRef({ itemVisiblePercentThreshold: 50 }).current}
             contentContainerStyle={[
               styles.categoriesScroller,
               { paddingRight: categoryPaddingRight },
@@ -1048,13 +1138,19 @@ const DesignListHeader = React.memo((props: DesignListHeaderProps) => {
               }
 
               const active = item.id === 'All' ? effectiveCategory === 'All' : effectiveCategory === item.id;
-              const onPress = item.kind === 'all' ? onCategoryClear : () => onCategorySelect(item.id);
+              const onPress = item.kind === 'all' ? onCategoryClear : () => onCategorySelect(item.id)
+              const onPressIn = item.kind === 'all' ? undefined : () => {
+                if (!canPrefetchCategories) return
+                if (hasPrefetchedCategory(item.id)) return
+                prefetchCategory(item.id)
+              }
 
               return (
                 <TouchableOpacity
                   style={[styles.categoryCard, active && styles.categoryCardActive]}
                   activeOpacity={0.85}
                   delayPressIn={40}
+                  onPressIn={onPressIn}
                   onPress={onPress}
                 >
                   <View style={[styles.categorySwatch, { backgroundColor: item.swatchColor }]} />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,24 @@ export default function DeleteAccountScreen({ navigation }: Props) {
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [authProvider, setAuthProvider] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      const provider = (session?.user?.app_metadata as any)?.provider ?? null;
+      setAuthProvider(provider);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const requiresPassword = useMemo(() => {
+    // Only require password for email/password accounts
+    return authProvider === 'email';
+  }, [authProvider]);
 
   const openManageSubscriptions = async () => {
     const iosUrl = 'itms-apps://apps.apple.com/account/subscriptions';
@@ -60,7 +78,7 @@ export default function DeleteAccountScreen({ navigation }: Props) {
 
   const handleDeleteAccount = async () => {
     // Validation
-    if (!password) {
+    if (requiresPassword && !password) {
       Alert.alert('Password Required', 'Please enter your password to confirm account deletion.');
       return;
     }
@@ -103,16 +121,17 @@ export default function DeleteAccountScreen({ navigation }: Props) {
         return;
       }
 
-      // Re-authenticate user with password
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: session.user.email!,
-        password: password,
-      });
-
-      if (authError) {
-        Alert.alert('Authentication Failed', 'Incorrect password. Please try again.');
-        setIsDeleting(false);
-        return;
+      // Re-authenticate only for email/password users; Apple/other providers can use the current session
+      if (requiresPassword) {
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: session.user.email!,
+          password: password,
+        });
+        if (authError) {
+          Alert.alert('Authentication Failed', 'Incorrect password. Please try again.');
+          setIsDeleting(false);
+          return;
+        }
       }
 
       // Call account deletion function
@@ -240,32 +259,40 @@ export default function DeleteAccountScreen({ navigation }: Props) {
           {/* Confirmation Section */}
           <View style={styles.confirmationSection}>
             <Text style={styles.sectionTitle}>Confirm Your Identity</Text>
-            
-            {/* Password Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Enter your password</Text>
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="Password"
-                  placeholderTextColor="#999"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity
-                  style={styles.eyeButton}
-                  onPress={() => setShowPassword(!showPassword)}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={22}
-                    color="#999"
+
+            {requiresPassword ? (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Enter your password</Text>
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="Password"
+                    placeholderTextColor="#999"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
                   />
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off' : 'eye'}
+                      size={22}
+                      color="#999"
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            ) : (
+              <View style={[styles.inputContainer, { marginBottom: 4 }]}>
+                <Text style={styles.paragraph}>
+                  You’re signed in with {authProvider === 'apple' ? 'Sign in with Apple' : 'a social provider'}.
+                  We’ll use your current session to confirm this request.
+                </Text>
+              </View>
+            )}
 
             {/* Confirmation Text */}
             <View style={styles.inputContainer}>
@@ -313,10 +340,10 @@ export default function DeleteAccountScreen({ navigation }: Props) {
           <TouchableOpacity
             style={[
               styles.deleteButton,
-              (!password || confirmText !== 'DELETE' || isDeleting) && styles.deleteButtonDisabled
+              ((requiresPassword && !password) || confirmText !== 'DELETE' || isDeleting) && styles.deleteButtonDisabled
             ]}
             onPress={handleDeleteAccount}
-            disabled={!password || confirmText !== 'DELETE' || isDeleting}
+            disabled={(requiresPassword && !password) || confirmText !== 'DELETE' || isDeleting}
           >
             {isDeleting ? (
               <ActivityIndicator color="#FFF" />
@@ -525,6 +552,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
+  },
+  paragraph: {
+    fontSize: 15,
+    color: '#333',
+    lineHeight: 22,
   },
   deleteButtonDisabled: {
     backgroundColor: '#FFB0A8',

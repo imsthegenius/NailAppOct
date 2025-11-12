@@ -162,6 +162,47 @@ serve(async (req) => {
     auth: { persistSession: false },
   })
 
+  // Best-effort: delete user-owned storage objects before removing auth user
+  const userPrefix = `${userData.user.id}/`
+  const buckets = ['user-uploads', 'transformed-images', 'avatars'] as const
+
+  async function deleteBucketPrefix(bucket: string, prefix: string) {
+    try {
+      // Recursively traverse folders and remove files in batches
+      const stack: string[] = [prefix.replace(/^\//, '').replace(/\/$/, '')]
+      while (stack.length) {
+        const current = stack.pop()!
+        const { data: entries, error: listError } = await supabaseAdminClient.storage.from(bucket).list(current, {
+          limit: 1000,
+        })
+        if (listError) {
+          console.warn('list failed for', { bucket, current, error: listError.message })
+          continue
+        }
+        const folders = (entries || []).filter((e: any) => e.id === null && e.name && e.metadata?.eTag === undefined)
+        const files = (entries || []).filter((e: any) => e.name && e.id !== null)
+
+        const filePaths = files.map((f: any) => `${current}/${f.name}`)
+        if (filePaths.length) {
+          const { error: removeError } = await supabaseAdminClient.storage.from(bucket).remove(filePaths)
+          if (removeError) {
+            console.warn('remove failed for', { bucket, count: filePaths.length, error: removeError.message })
+          }
+        }
+
+        for (const folder of folders) {
+          stack.push(`${current}/${folder.name}`)
+        }
+      }
+    } catch (e) {
+      console.warn('deleteBucketPrefix unexpected error', { bucket, prefix, error: (e as any)?.message || e })
+    }
+  }
+
+  await Promise.all(
+    buckets.map((b) => deleteBucketPrefix(b, userPrefix))
+  )
+
   const { error: deleteError } = await supabaseAdminClient.auth.admin.deleteUser(userData.user.id)
 
   if (deleteError) {

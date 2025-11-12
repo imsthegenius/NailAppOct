@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 8.0.0"
+    "version": ">= 16.26.0"
   },
   "build": {
     "preview": {
@@ -8,6 +8,7 @@
       "cache": {
         "key": "pods-${hash:ios/Podfile.lock}"
       },
+      "channel": "testflight",
       "ios": {
         "resourceClass": "m-medium",
         "image": "sdk-53"
@@ -18,12 +19,14 @@
       "cache": {
         "key": "pods-${hash:ios/Podfile.lock}"
       },
+      "channel": "testflight",
       "ios": {
         "resourceClass": "m-medium",
         "image": "sdk-53"
       }
     },
     "production": {
+      "channel": "production",
       "ios": {
         "resourceClass": "m-medium"
       }

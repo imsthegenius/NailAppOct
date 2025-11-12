@@ -47,11 +47,23 @@ export default function ProfileScreen() {
 
   const handleSettingPress = (setting: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (setting === 'Privacy') {
+      navigation.navigate('PrivacyPolicy');
+      return;
+    }
+    if (setting === 'Terms of Service') {
+      navigation.navigate('TermsOfService');
+      return;
+    }
+    if (setting === 'Help & Support') {
+      Linking.openURL('mailto:support@nailglow.app');
+      return;
+    }
   };
 
   const menuItems = [
-    { icon: 'notifications-outline' as const, label: 'Notifications' },
     { icon: 'shield-checkmark-outline' as const, label: 'Privacy' },
+    { icon: 'document-text-outline' as const, label: 'Terms of Service' },
     { icon: 'help-circle-outline' as const, label: 'Help & Support' },
   ];
 
@@ -140,6 +152,36 @@ export default function ProfileScreen() {
                 <Text style={styles.manageSubtitle}>Opens the App Store to update or cancel billing.</Text>
               </View>
               <Ionicons name="open-outline" size={20} color={accentPink} />
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.manageSubscriptionCard, { marginTop: 12 }]}>
+            <TouchableOpacity
+              style={styles.manageContent}
+              activeOpacity={0.88}
+              onPress={async () => {
+                try {
+                  const mod: any = await import('../lib/revenuecat');
+                  const rc = mod?.restorePurchases ?? null;
+                  if (rc) {
+                    await rc();
+                    Alert.alert('Restored', 'Your purchases were refreshed.');
+                  } else {
+                    Alert.alert('Unavailable', 'Restore Purchases is not available.');
+                  }
+                } catch (e) {
+                  if (__DEV__) console.warn('Restore purchases failed', e);
+                  Alert.alert('Error', 'We could not restore purchases right now.');
+                }
+              }}
+            >
+              <View style={styles.manageIconWrap}>
+                <Ionicons name="refresh-outline" size={22} color={accentPink} />
+              </View>
+              <View style={styles.manageTextWrap}>
+                <Text style={styles.manageTitle}>Restore Purchases</Text>
+                <Text style={styles.manageSubtitle}>Re-activates your premium access on this device.</Text>
+              </View>
+              <Ionicons name="checkmark-circle-outline" size={20} color={accentPink} />
             </TouchableOpacity>
           </View>
         </View>
