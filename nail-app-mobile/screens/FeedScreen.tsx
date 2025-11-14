@@ -566,7 +566,7 @@ export default function FeedScreen() {
       />
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>My Looks</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Feed</Text>
         <TouchableOpacity 
           style={styles.profileButton}
           onPress={handleProfilePress}

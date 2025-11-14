@@ -13,6 +13,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   TextInput,
+  AccessibilityInfo,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -40,6 +41,9 @@ import type { CategorySummary, ColorCatalogEntry } from '../src/services/colorCa
 import { fetchCategorySummaries, fetchColorCatalog, prefetchColorCatalog } from '../src/services/colorCatalog'
 import type { MainStackParamList } from '../navigation/types';
 import { spacing, radii } from '../src/theme/tokens';
+
+// Reanimated for layout + entering/exiting animations on selected labels
+import AnimatedRN, { Layout, SlideInDown, SlideOutUp, FadeInDown, FadeOutUp } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -102,6 +106,9 @@ const SHAPES = [
 ];
 
 const PAGE_SIZE = 24;
+
+// Animated wrapper for grid items to smoothly reflow neighbors on size change
+const AnimatedTouchable = AnimatedRN.createAnimatedComponent(TouchableOpacity);
 
 
 type CategoryListItem =
@@ -181,6 +188,8 @@ const DesignScreen = () => {
   const [pendingPhoto, setPendingPhoto] = useState<{ imageUri: string; base64?: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
+  // Gate label reveal until user taps a color (match Figma: no labels by default)
+  const [hasTappedColor, setHasTappedColor] = useState(false)
   // Track which categories we’ve already prefetched to avoid duplicate work
   const prefetchedCategoryIdsRef = useRef<Set<string>>(new Set())
 
@@ -265,6 +274,11 @@ const DesignScreen = () => {
     },
     [filters]
   );
+
+  // Reset tap gating whenever filter context changes so labels stay hidden until the next user tap
+  useEffect(() => {
+    setHasTappedColor(false)
+  }, [filters])
 
   useEffect(() => {
     if (!effectiveBrand) {
@@ -399,7 +413,12 @@ const DesignScreen = () => {
 
   const handleColorSelect = (entry: ColorCatalogEntry) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setHasTappedColor(true);
     updateSelectedColor(buildSelectedColor(entry));
+    const name = entry.shadeName || entry.colorName || 'Selected color';
+    try {
+      AccessibilityInfo.announceForAccessibility?.(`${name} selected`);
+    } catch {}
   };
 
   const handleShapeSelect = async (shape: { id: string; name: string; icon?: string }) => {
@@ -684,27 +703,41 @@ const DesignScreen = () => {
 
     const cardWidth = Math.max(1, (windowWidth - GRID_SIDE_INSET * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS)
     return (
-      <TouchableOpacity
+      <AnimatedTouchable
         style={[
           styles.colorItem,
           { width: cardWidth },
           columnPosition !== GRID_COLUMNS - 1 && { marginRight: GRID_GAP },
           isSelected && styles.colorItemSelected,
         ]}
+        layout={Layout.springify().damping(18).stiffness(160)}
         activeOpacity={0.85}
         onPress={() => handleColorSelect(item)}
+        accessibilityRole="button"
+        accessibilityState={{ selected: !!isSelected }}
       >
-        <View style={[styles.colorTile, { backgroundColor: item.hexCode || '#E5E5E5' }]} />
-        <Text style={[styles.shadeName, isSelected && styles.shadeNameSelected]} numberOfLines={1}>
-          {item.shadeName}
-        </Text>
-        <Text style={styles.brandLine} numberOfLines={1}>
-          {item.brand} • {item.productLine}
-        </Text>
-        {item.shadeCode ? (
-          <Text style={styles.shadeCode}>#{item.shadeCode}</Text>
+        <View
+          style={[
+            styles.colorTile,
+            { backgroundColor: item.hexCode || '#E5E5E5' },
+            isSelected && styles.colorTileSelected,
+          ]}
+        />
+        {isSelected && hasTappedColor ? (
+          <AnimatedRN.View
+            style={styles.labelBlock}
+            entering={FadeInDown.duration(180)}
+            exiting={FadeOutUp.duration(120)}
+          >
+            <Text style={[styles.shadeName, styles.shadeNameSelected]} numberOfLines={1}>
+              {item.shadeName}
+            </Text>
+            <Text style={styles.brandLine} numberOfLines={1}>
+              {item.brand}
+            </Text>
+          </AnimatedRN.View>
         ) : null}
-      </TouchableOpacity>
+      </AnimatedTouchable>
     );
   };
 
@@ -1272,6 +1305,19 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 8,
     marginBottom: 10,
+  },
+  colorTileSelected: {
+    borderWidth: 2,
+    borderColor: '#FF9BC5',
+    shadowColor: '#FFB7D0',
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  labelBlock: {
+    // Makes the text feel like it slides out from under the tile
+    marginTop: -2,
   },
   shadeName: {
     fontSize: 13,
