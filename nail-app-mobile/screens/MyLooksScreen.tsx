@@ -21,6 +21,7 @@ import { getUserLooks, getPublicUrlFor } from '../lib/supabaseStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import SmartImage from '../components/common/SmartImage'
 
 type MyLooksScreenNavigationProp = StackNavigationProp<RootStackParamList, 'MyLooks'>;
 
@@ -249,9 +250,10 @@ export default function MyLooksScreen({ navigation }: Props) {
       >
         {imageUri ? (
           <>
-            <Image
-              source={{ uri: imageUri }}
+            <SmartImage
+              uri={imageUri}
               style={[styles.lookImage, !loaded && { opacity: 0.01 }]}
+              transitionDurationMs={200}
               onError={() => markImageFailed(item.id, imageUri)}
               onLoad={() => setLoadedImageIds((s) => (s[item.id] ? s : { ...s, [item.id]: true }))}
             />
@@ -357,7 +359,7 @@ export default function MyLooksScreen({ navigation }: Props) {
       <Modal visible={!!previewLook} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Image source={{ uri: previewLook?.transformedImage }} style={styles.modalImage} />
+            <SmartImage uri={previewLook?.transformedImage || ''} style={styles.modalImage} transitionDurationMs={220} />
             <View style={styles.modalInfoRow}>
               <View style={[styles.colorIndicator, { backgroundColor: previewLook?.colorHex || '#fff' }]} />
               <View style={styles.modalTextBlock}>

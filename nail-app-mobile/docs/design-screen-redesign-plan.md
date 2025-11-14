@@ -1,180 +1,138 @@
-# Design Screen Redesign — Implementation Plan
+# Design Screen Redesign — Re‑Plan (Exact Figma Spec)
 
 Owner: Mobile
 Last updated: 2025-11-12
 
-This plan brings the Design screen and its components in line with the provided Figma reference (gradient “Design” title, pill filters, categories row, 4‑column color grid, glass “Select Shape” dock, and liquid‑glass tab bar with a floating heart).
+Status
+- All prior code changes have been reverted. This is a plan only. Do not implement until approved.
 
-## Scope
+Goal
+- Implement the Design screen exactly as provided by the Figma export and screenshot (gradient “Design” title, 5 primary pills, 4‑column colour grid, categories row, glass “Select Shape” sheet with gradient Continue and a circular heart, and the bottom glass tab bar with Design/Camera only). No deviations.
 
-- Update the existing Design screen layout and visuals without changing business logic, data fetching, or navigation types.
-- Reuse the Liquid Glass primitives and theme tokens; add minimal new primitives for gradient text and reusable glass pills.
-- Validate at 390 px and 428 px widths per “iOS26” vision.
+Non‑negotiables from Figma export
+- Title: gradient text “Design” (≈34pt) with the specified pink gradient.
+- Primary chips: All (selected, pink gradient) • Trending • OPI • CND • TGB.
+- Categories row: 43×43 swatches, 54×69 cards, label 13pt, radius 8, spacing per export.
+- Colour grid: 4 columns. Tile size follows export (≈90×90 inside ~417px container); adapt responsively while preserving 4 columns and the gap.
+- Shape sheet: “Select Shape” title; white pills (None selected), gradient “Continue” spanning remaining width, circular heart button on the right inside the sheet (navigates to Feed).
+- Bottom glass tab bar: two tabs (Design, Camera). Feed is not a tab; it is opened via the heart.
 
-## Milestones
+Files to update (and only these)
+- `nail-app-mobile/screens/DesignScreen.tsx` — Layout + styles only. Reuse existing fetching/state.
+- `nail-app-mobile/components/ui/LiquidGlassTabBar.tsx` — Ensure exactly two tabs (Design/Camera). No other behaviour changes unless spacing requires.
+- `nail-app-mobile/src/theme/tokens.ts` — Add minimal tokens (gradient stops, fixed spacings) strictly required by visuals.
 
-1) Tokens & primitives
-2) Header + primary filters
-3) Categories row
-4) 4‑column color grid
-5) Shape selector glass dock
-6) Tab bar selection indicator + floating heart
-7) Polish, dark mode, QA
+Implementation steps
+1) Title (gradient)
+   - Add masked gradient title (MaskedView + LinearGradient). If dependency add is not approved, render solid accent temporarily; gradient will be enabled after install.
+   - Typography: 34/41, weight 700, tracking ≈ -1.0.
 
-## Files To Add / Update
+2) Primary chips row (5 chips)
+   - Exact order/labels: All (selected), Trending, OPI, CND, TGB.
+   - Selected: pink gradient with white text. Unselected: white pill with subtle border; height 35px; gap 13px; pill radius full.
+   - Wire to existing handlers only: `activePrimaryFilter`, `handlePrimaryFilterSelect`.
 
-Add
-- `nail-app-mobile/components/ui/GradientText.tsx` — gradient text wrapper for the screen title.
-- `nail-app-mobile/components/ui/GlassPillChip.tsx` — reusable pill chip (filter + shape variants).
-- `nail-app-mobile/components/ui/FloatingGlassButton.tsx` — circular liquid‑glass button for the heart.
+3) Categories section
+   - Header “Categories” 15pt/600.
+   - Horizontal list: 54×69 cards, swatch 43×43 (radius 8), 13pt label. Use current data and behaviour; match spacing.
 
-Update
-- `nail-app-mobile/src/theme/tokens.ts` — add pink gradient tokens and shared chip sizes/radii.
-- `nail-app-mobile/components/ui/LiquidGlassTabBar.tsx` — selected tab background indicator to match mock.
-- `nail-app-mobile/screens/DesignScreen.tsx` — header, filters, categories row sizing, 4‑col grid, shape chips, add floating heart.
+4) Colour grid (4 columns)
+   - Change constants to 4 columns and the Figma gap (≈19px). Set side inset so four 1:1 tiles fit edge‑to‑edge at 390/428 widths.
+   - Compute `CARD_WIDTH` from `useWindowDimensions()` so rotation/tablets still produce 4 columns.
+   - Keep current text stack (name, brand • line, #code). No API or pagination changes.
 
-No change (referenced/reused)
-- `nail-app-mobile/components/ui/NativeLiquidGlass.tsx`
-- `nail-app-mobile/components/ui/GlassmorphicView.tsx`
+5) Shape selector sheet
+   - Glass container using `NativeLiquidGlass` positioned above tab bar with safe‑area padding.
+   - Title “Select Shape”.
+   - Pills: white; ‘None’ selected; reuse paywall lock state; sizes match primary chips.
+   - CTA row: gradient “Continue” button spanning remaining width + circular glass heart on the right (Feed navigation).
 
-## Detailed Tasks
+6) Bottom glass tab bar (global)
+   - Two tabs: Design and Camera on all three screens (Design/Camera/Feed). No Feed tab.
+   - Do not add selection indicators unless explicitly requested by design.
 
-### 1) Tokens & primitives
-- `src/theme/tokens.ts`
-  - Add palette entries for pink gradient stops (e.g. `rose300`, `rose600`).
-  - Add `gradients.pills.pink = ['#F9A8D4', '#E11D48']` (or brand‑approved hexes).
-  - Add a small `chips` section to centralize pill paddings, height, corner radius.
-- `components/ui/GradientText.tsx`
-  - Implement using `LinearGradient` + `@react-native-masked-view/masked-view`.
-  - Props: `children`, `colors`, `start`, `end`, `style`.
-- `components/ui/GlassPillChip.tsx`
-  - Props: `{ label, selected, onPress, locked?, variant: 'filter'|'shape' }`.
-  - Selected: pink gradient background, white text; Unselected: subtle translucent surface; Optional lock icon.
+Accessibility and polish
+- Chips have `accessibilityRole="button"` and `accessibilityState={{selected}}`.
+- Heart has `accessibilityLabel="Open Feed"`.
+- Avoid heavy shadows on every tile; match Figma’s subtle glass sheen.
 
-### 2) Header + primary filters (All, Trending, OPI, CND, TGB)
-- `screens/DesignScreen.tsx`
-  - Replace header title `Text` with `<GradientText>`; keep size ~34, weight 700.
-  - Replace the existing primary filter map with `<GlassPillChip>` items.
-  - Keep existing state and handlers: `activePrimaryFilter`, `handlePrimaryFilterSelect`.
-  - Optional: hide search for this pass (Figma doesn’t show it) via a local `SHOW_SEARCH = false` toggle.
+Acceptance criteria
+- Visuals at 390 and 428 widths match the screenshot: 5 chips, 4‑column grid, categories spacing, shape sheet CTA row with heart, two‑tab bottom bar.
+- Interactions: chips change lists; Continue works; heart opens Feed.
+- No changes to camera timing or catalogue fetching.
 
-### 3) Categories row
-- `screens/DesignScreen.tsx`
-  - Keep the current data; adjust visuals:
-    - Card width ~56, swatch 44×44, radius 8, gap 16.
-    - Label font 12–13, centered; active state bold and slightly raised.
-  - Update styles around `categoryCard`, `categorySwatch`, `categoryCardLabel`.
+Out of scope
+- Supabase changes, new routes, or paywall/business logic changes.
 
-### 4) 4‑column color grid
-- `screens/DesignScreen.tsx`
-  - Constants near top:
-    - `GRID_COLUMNS = 4`
-    - `GRID_GAP ≈ 12–14`
-    - `GRID_SIDE_INSET ≈ 14`
-  - `CARD_WIDTH` already derives from these; keep tiles square (`aspectRatio: 1`) with radius 8.
-  - Placeholder/empty tiles use light pink fill to match mock.
-  - Leave pagination, caching, and selection logic unchanged.
+Rollout
+- Single PR with the three files above only. Approve on simulators; then device smoke test.
 
-### 5) Shape selector glass dock
-- `screens/DesignScreen.tsx`
-  - Reuse existing `NativeLiquidGlass` container and spacing.
-  - Replace in‑sheet shape chips with `<GlassPillChip variant='shape'>` for visual parity.
-  - Selected = gradient pill with white text; locked shows small lock (reuse current entitlement check).
-  - Keep “Continue” CTA and navigation behavior intact.
+## Lessons Learned & Guardrails (Do Not Deviate)
 
-### 6) Tab bar selection indicator + floating heart
-- `components/ui/LiquidGlassTabBar.tsx`
-  - Add a rounded translucent selection background behind the active tab (absolute, animated).
-  - Keep icons; ensure active label uses accent or white over the selection background.
-- `components/ui/FloatingGlassButton.tsx`
-  - Circular `NativeLiquidGlass`, subtle highlight overlay, centered `Ionicons` heart outline.
-  - Add to `DesignScreen` positioned bottom‑right above the tab bar; onPress TBD (Favorites?).
+- No search bar: The current Figma/mechanism does not include a search field on the Design screen. Do not render search. If we later add it, it must be a separate, explicit task.
+- Always 4 columns for the colour grid: Never ship 3 columns. Constants: `GRID_COLUMNS = 4`, `GRID_GAP ≈ 19`, side insets tuned for 390/428 widths. Use `useWindowDimensions()` so rotation/tablets remain 4‑col.
+- Bottom nav composition is fixed: left mini‑tabs = Design + Feed; right standalone glass Camera button. Feed is not a tab inside the left block; no third “Camera” tab.
+- Heart location: Feed is accessed from the bottom nav (left block), not inside the Select Shape sheet.
+- Gradients are a second pass: Title/pills/CTA gradients come later. First pass uses solid colours only — do not introduce gradient dependencies until explicitly approved.
+- No new primitives without approval: Keep changes inside the three files listed. If a helper component helps readability, propose it first in the PR description.
+- Optional native modules must be gated: Do not `require()` optional modules (e.g., `expo-battery`) unless behind an explicit env flag to avoid Hermes “unknown module” crashes.
+- Strict change control: Plan first, implement second. Any visual or structural variance from Figma requires written approval in this doc or the PR.
 
-## Acceptance Criteria
+## “Pixel Locks” (non‑negotiable values)
 
-- Title “Design” renders as gradient text and matches the mock at 390 px and 428 px.
-- Primary filter pills: “All” selected with gradient; others unselected; taps update results.
-- Categories row: square swatches with labels as shown; active state emphasized.
-- Color grid: 4 columns, uniform spacing, rounded tiles; loading/empty states match style.
-- Shape dock: glass sheet with “Select Shape”; gradient chip for the selected shape (“None” maps to `keep`).
-- Tab bar: active tab has rounded selection background; floating glass heart visible and tappable.
-- Dark mode retains contrast/legibility (borders and intensities tuned via tokens).
-- `npm run lint`, `npm run type-check`, and device smoke tests pass on iOS and Android.
+- Pills: height 35 px; gap 13 px; selected = solid pink for v1; unselected = white + 1 px border rgba(60,60,67,0.10).
+- Categories: card 54×69; swatch 43×43 (radius 8); label 13 pt; horizontal gap 16.
+- Grid: 4×N; tile aspect 1:1 with 8 px radius; inter‑tile gap ≈ 19; side insets tuned so 4 tiles fit cleanly at 390 and 428 widths.
+- Shape sheet: title 17 pt/Medium; pills white; Continue solid pink (v1) spanning as per Figma; sits above tab bar with safe‑area awareness.
+- Bottom nav: two mini tabs (Design/Feed) inside the left glass block; circular Camera button on the right. Selected tab uses plate background; Feed label neutral.
 
-## Non‑Goals
+## Follow‑ups
 
-- No changes to Supabase schemas, catalog queries, or pagination semantics.
-- No changes to navigation types (`navigation/types.ts`) or camera timing (keep the 50 ms init delay on Camera flow).
+- Gradient pass: add masked gradient title, pill fills, and CTA gradient once approved to add `@react-native-masked-view/masked-view`.
+- Minor spacing polish after device screenshots at 390/428 to match the export exactly.
 
-## Risks & Mitigations
+## Outstanding Changes Required (Implementation TODOs)
 
-- Gradient text dependency: if `@react-native-masked-view/masked-view` is missing, add via Expo (managed workflow) or fall back to solid accent text.
-- Performance: 4‑col grid increases initial render; keep current FlatList virtualization (already tuned) and avoid heavy shadows on each tile.
-- Dark mode contrast: verify chip text and borders; adjust token intensities if needed.
+These are the concrete code changes still required to finish the first, non‑gradient pass. Do not add features not listed here.
 
-## QA Checklist
+- Remove the search bar from Design
+  - Delete the search container from `nail-app-mobile/screens/DesignScreen.tsx` (the `NativeLiquidGlass` + `TextInput` block under the title). Do not render or gate it; remove entirely.
 
-- iPhone 15/16 Pro simulators at 390 px and 428 px widths; one recent Android device.
-- Verify: filter taps, category selection/clear, infinite scroll, shape selection (locked states), Continue flow.
-- Verify: tab switches between Design/Camera/Feed; floating heart press routes to the chosen destination (once wired).
-- Run: `npm run lint`, `npm run type-check`, `npm run web` for quick layout spot‑checks, then device smoke test.
+- Lock the colour grid to 4 columns (everywhere)
+  - In `nail-app-mobile/screens/DesignScreen.tsx`:
+    - Ensure `GRID_COLUMNS = 4` and `GRID_GAP ≈ 19`.
+    - Replace `Dimensions.get('window')` with `useWindowDimensions()` and recompute `CARD_WIDTH` reactively so we always render 4 columns on 390/428 widths and rotation. Avoid stale `width` captured at import time.
+    - Keep square tiles with radius 8 and the Figma side insets so four tiles + three gaps fit cleanly.
 
-## Estimated Sequence
+- Primary pills (exact Figma spacing/visuals – solid for v1)
+  - In `DesignScreen.tsx`, pills must be: height 35 px, gap 13 px, pill radius 999.
+  - Selected: solid pink background + white label (gradients later).
+  - Unselected: white background + 1 px border rgba(60,60,67,0.10), label rgba(31,31,31,0.65).
+  - Order/labels fixed: All (selected), Trending, OPI, CND, TGB.
 
-1) Tokens + `GlassPillChip` + `GradientText` (low risk, unblock visuals)
-2) Swap header + primary filters in `DesignScreen`
-3) Categories sizing pass
-4) Switch to 4‑column grid and spacing tune
-5) Replace shape chips and finalize dock
-6) Tab bar selection background + add floating heart
-7) Polish, dark mode tune, QA
+- Categories row pixel locks
+  - `DesignScreen.tsx` categories FlatList: item 54×69, swatch 43×43 (radius 8), label 13 pt, horizontal gap 16. No additional chevrons/arrows unless design specifies.
 
-## Open Questions
+- Shape sheet composition (no heart inside)
+  - `DesignScreen.tsx`: keep “Select Shape” title, white shape pills (use the same pill dimensions as the primary row), and a solid pink Continue button. Do not render a heart inside the sheet.
+  - Position above the bottom nav using safe‑area insets; avoid overlap on smaller screens.
 
-- Exact brand pinks: proceed with `#F9A8D4 → #E11D48`, or provide brand hex values?
-- Floating heart action: Favorites, Likes, or a quick shortlist? Which route/param shape?
-- Keep search hidden for now, or reintroduce later under a compact affordance?
+- Bottom navigation (final structure for v1)
+  - `components/ui/LiquidGlassTabBar.tsx` already exposes `activeTab`, `onTabPress`, `onCameraPress`.
+  - Ensure the left glass block contains exactly two mini tabs: Design and Feed.
+  - The right circular glass button opens Camera.
+  - Do not render a third tab or the old floating search.
+  - On Camera screen, the bar may be hidden or collapsed — confirm desired behavior and apply consistently.
 
----
+- Optional native modules must be gated
+  - `lib/savedLooksPrefetch.ts` is now gated by `EXPO_PUBLIC_ENABLE_BATTERY_DEFER`. Keep this pattern for any future optional native modules to avoid Hermes “unknown module” crashes.
 
-## Audit Addendum (No Duplication, Correct Files)
+## QA Checklist (Blocking)
 
-Source of truth for the Design screen used in navigation:
-
-- `nail-app-mobile/navigation/MainNavigator.tsx` imports `../screens/DesignScreen` and sets `initialRouteName="Design"` with `<Stack.Screen name="Design" component={DesignScreen} />`.
-- `nail-app-mobile/screens/DesignScreen.tsx` therefore is the only Design screen wired into the app. We will update this file in place.
-- Other references (for navigation):
-  - `nail-app-mobile/navigation/types.ts` includes `Design` in `MainStackParamList`.
-  - Calls to navigate to `Design` originate from Camera/Results, confirming this is the live route.
-
-Guarantees to avoid duplication:
-
-- Do not create a new screen file. All layout/visual changes happen in `screens/DesignScreen.tsx`.
-- Shared UI changes happen only in existing primitives under `components/ui/`:
-  - Update `components/ui/LiquidGlassTabBar.tsx` in place (no new tab bar component).
-  - Add new primitives (`GradientText`, `GlassPillChip`, `FloatingGlassButton`) under `components/ui/` and import them into `DesignScreen.tsx` only where used.
-- No files will be added under the retired web prototype (`nail-app/`) per repo guidance.
-
-Quick verification commands (optional):
-
-- List all Design screen references: `rg -n "DesignScreen|name=\"Design\"|navigate\('Design'\)" nail-app-mobile`
-- Confirm single screen export: `rg -n "export default .*Design" nail-app-mobile/screens/DesignScreen.tsx`
-
-## Dependencies & Implementation Notes
-
-- Gradient text: `@react-native-masked-view/masked-view` is not in `package.json`. If gradient title is required, add it via Expo: `npx expo install @react-native-masked-view/masked-view`. Provide a fallback to solid accent text if the lib isn’t installed.
-- Blurs/Glass: we reuse `NativeLiquidGlass` and `expo-blur` already present. Keep intensity from tokens; avoid nested blurs in lists.
-- Grid width on rotation: recompute `CARD_WIDTH` with `useWindowDimensions()` or on-layout to avoid mis-sizing on tablets/rotation. Avoid hard module‑level `Dimensions.get()` only.
-- Tab bar selection indicator: measure each tab with `onLayout`, animate an absolute rounded highlight using `Animated` translateX + width to ensure correct alignment on all devices.
-- Shape dock bottom spacing: position relative to safe area + measured tab bar height to prevent overlap on short screens.
-- Accessibility: set `accessibilityRole="button"`, `accessibilityState={{ selected }}` on pills; give the heart a label (e.g., “Open Favorites”).
-- Dark mode: confirm chip borders/labels pass contrast on both themes; adjust tokens as needed (e.g., increase border alpha on dark).
-
-## Definition of Done (expanded)
-
-- Only `screens/DesignScreen.tsx` is modified for the screen; no duplicate screens added.
-- New UI primitives live in `components/ui/` and are imported where used; no alternative tab bar or duplicate glass views created.
-- All acceptance criteria pass at 390 px and 428 px; rotation and Android layouts verified.
-- Lint/type-check pass: `npm run lint`, `npm run type-check`.
-- Camera flow delay untouched; navigating back to Camera still respects the 50 ms init requirement (no changes made here).
-
+- Design screen shows no search bar.
+- Pill row: All (selected) + Trending + OPI + CND + TGB, with exact spacing and solid colors.
+- Categories match sizes (54×69, 43×43 swatch) and spacing.
+- Grid renders 4 columns on iPhone 15/16 Pro simulators (390/428 widths) and on rotation; no 3‑column fallback appears.
+- Shape sheet floats above grid, pills white, Continue solid pink; no heart in this sheet.
+- Bottom nav: left = Design/Feed mini tabs, right = Camera button; taps route correctly on Design, Feed, and Camera screens.
+- No Metro/Hermes “unknown module” errors on a clean install after `npx expo start -c`.

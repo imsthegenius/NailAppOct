@@ -25,6 +25,7 @@ import { getUserLooks, getPublicUrlFor } from '../lib/supabaseStorage';
 import * as FileSystem from 'expo-file-system';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BRAND_COLORS } from '../src/theme/colors';
+import SmartImage from '../components/common/SmartImage'
 import type { MainStackParamList } from '../navigation/types';
 
 const { width } = Dimensions.get('window');
@@ -493,11 +494,11 @@ export default function FeedScreen() {
       >
         {imageUri ? (
           <>
-            <Image
-              key={`${item.id}-${failedImageIds[item.id] ? 'fallback' : 'primary'}`}
-              source={{ uri: imageUri }}
+            <SmartImage
+              uri={imageUri}
               style={[styles.lookImage, !loaded && { opacity: 0.01 }]}
               resizeMode="cover"
+              transitionDurationMs={200}
               onError={() => markImageFailed(item.id, imageUri)}
               onLoad={() => setLoadedImageIds((s) => (s[item.id] ? s : { ...s, [item.id]: true }))}
             />
@@ -620,19 +621,11 @@ export default function FeedScreen() {
       
       {/* Floating Liquid Glass Tab Bar */}
       <LiquidGlassTabBar
-        tabs={[
-          { icon: 'color-palette', label: 'Design', route: 'Design' },
-          { icon: 'camera', label: 'Camera', route: 'Camera' },
-          { icon: 'grid', label: 'Feed', route: 'Feed' },
-        ]}
         activeTab="Feed"
         onTabPress={(route) => {
-          if (route === 'Camera') {
-            setTimeout(() => navigation.navigate('Camera'), 120);
-          } else if (route === 'Design') {
-            navigation.navigate('Design');
-          }
+          if (route === 'Design') navigation.navigate('Design');
         }}
+        onCameraPress={() => navigation.navigate('Camera')}
       />
 
       <Modal
@@ -653,11 +646,11 @@ export default function FeedScreen() {
                 );
               }
               return (
-                <Image
-                  key={`${selectedLook.id}-${failedImageIds[selectedLook.id] ? 'fallback' : 'primary'}`}
-                  source={{ uri: previewUri }}
+                <SmartImage
+                  uri={previewUri}
                   style={styles.modalImageFull}
                   resizeMode="contain"
+                  transitionDurationMs={220}
                   onError={() => markImageFailed(selectedLook.id, previewUri)}
                 />
               );

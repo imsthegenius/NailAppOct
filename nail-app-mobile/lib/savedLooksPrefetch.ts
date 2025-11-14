@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as FileSystem from 'expo-file-system'
-import { InteractionManager, Image } from 'react-native'
+import { InteractionManager, Image, AppState } from 'react-native'
 import { getPublicUrlFor, getUserLooks } from './supabaseStorage'
 import { supabase } from './supabase'
 
@@ -23,6 +23,33 @@ const LAST_WARM_KEY = 'savedLooksCache:lastWarm'
 const DEFAULT_MAX_FILES = 80
 const DEFAULT_MAX_BYTES = 120 * 1024 * 1024
 const MIN_FILE_SIZE = 256
+const CONCURRENCY = 4
+const RESUME_MIN_AGE_MS = 90 * 60 * 1000 // 90 minutes
+
+async function shouldDeferForPower(): Promise<boolean> {
+  // Avoid optional native module lookups unless explicitly enabled.
+  // This prevents Metro from attempting to resolve a missing module and throwing
+  // "Requiring unknown module <id>" on devices where expo-battery isn't installed.
+  try {
+    const flag = (globalThis as any)?.process?.env?.EXPO_PUBLIC_ENABLE_BATTERY_DEFER === '1'
+    if (!flag) {
+      return false
+    }
+  } catch {}
+  try {
+    // Optional dependency. If not installed, we don't defer.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Battery = require('expo-battery')
+    const state = await Battery.getPowerStateAsync()
+    const isLowPower = Boolean((state as any)?.lowPowerMode)
+    const level = typeof (state as any)?.batteryLevel === 'number' ? (state as any).batteryLevel : 1
+    // Defer when Low Power Mode or critically low and not charging
+    const charging = (state as any)?.batteryState === Battery.BatteryState.CHARGING
+    return isLowPower || (!charging && level < 0.15)
+  } catch {
+    return false
+  }
+}
 
 async function ensureCacheDir() {
   if (!FileSystem.cacheDirectory) return
@@ -104,6 +131,11 @@ export async function warmSavedLooksCache(options?: { limit?: number; force?: bo
       return // warmed recently (<2h)
     }
 
+    if (!force && (await shouldDeferForPower())) {
+      if (__DEV__) console.log('[SavedLooksPrefetch] defer due to low power')
+      return
+    }
+
     const { data: { session } } = await supabase.auth.getSession()
     const userId = session?.user?.id
     if (!userId) return
@@ -154,24 +186,19 @@ export async function warmSavedLooksCache(options?: { limit?: number; force?: bo
     const top = remote.slice(0, limit)
     let touched = false
 
-    for (const look of top) {
-      const id = (look as any).id as string
-      const transformed = (look as any).transformed_image_url as string | null
-      const original = (look as any).original_image_url as string | null
-
+    const processOne = async (look: any) => {
+      const id = look.id as string
+      const transformed = (look.transformed_image_url as string) || null
+      const original = (look.original_image_url as string) || null
       let localTransformed: string | null = localById.get(id)?.localTransformedImage ?? null
       let localOriginal: string | null = localById.get(id)?.localOriginalImage ?? null
 
       if (transformed && /^https?:/i.test(transformed) && !localTransformed) {
         const tExt = getExt(transformed)
         const tTarget = `${CACHE_DIR}${id}-transformed.${tExt}`
-        // Warm HTTP cache too for immediate first paint
         try { await Image.prefetch(transformed) } catch {}
         const uri = await downloadIfNeeded(transformed, tTarget)
-        if (uri) {
-          localTransformed = uri
-          touched = true
-        }
+        if (uri) { localTransformed = uri; touched = true }
       }
 
       if (original && /^https?:/i.test(original) && !localOriginal) {
@@ -179,10 +206,7 @@ export async function warmSavedLooksCache(options?: { limit?: number; force?: bo
         const oTarget = `${CACHE_DIR}${id}-original.${oExt}`
         try { await Image.prefetch(original) } catch {}
         const uri = await downloadIfNeeded(original, oTarget)
-        if (uri) {
-          localOriginal = uri
-          touched = true
-        }
+        if (uri) { localOriginal = uri; touched = true }
       }
 
       if (localTransformed || localOriginal) {
@@ -197,6 +221,16 @@ export async function warmSavedLooksCache(options?: { limit?: number; force?: bo
         localById.set(id, { ...(localById.get(id) || merged), ...merged })
       }
     }
+
+    let idx = 0
+    const workers = Array(Math.max(1, CONCURRENCY)).fill(0).map(async () => {
+      while (idx < top.length) {
+        const current = top[idx++]
+        // eslint-disable-next-line no-await-in-loop
+        await processOne(current)
+      }
+    })
+    await Promise.all(workers)
 
     const merged = Array.from(localById.values())
     merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -221,4 +255,24 @@ export function scheduleWarmOnAppStart() {
       warmSavedLooksCache({ limit: 24 }).catch(() => {})
     }, 400)
   })
+
+  // One-time resume listener: warm if last run is stale (>90m)
+  try {
+    const key = '__savedLooksResumeListenerInstalled'
+    if (!(globalThis as any)[key]) {
+      (globalThis as any)[key] = true
+      AppState.addEventListener('change', async (state) => {
+        if (state === 'active') {
+          try {
+            const last = Number(await AsyncStorage.getItem(LAST_WARM_KEY) || '0')
+            if (!last || Date.now() - last > RESUME_MIN_AGE_MS) {
+              setTimeout(() => {
+                warmSavedLooksCache({ limit: 24 }).catch(() => {})
+              }, 250)
+            }
+          } catch {}
+        }
+      })
+    }
+  } catch {}
 }

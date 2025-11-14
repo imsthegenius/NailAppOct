@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  useWindowDimensions,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -24,6 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { LiquidGlassTabBar } from '../components/ui/LiquidGlassTabBar';
 import { NativeLiquidGlass } from '../components/ui/NativeLiquidGlass';
+// Reverting to original primitives; no gradient text or custom chips
 import { useThemeColors } from '../hooks/useColorScheme';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { PAYWALL_DISABLED } from '../lib/paywall';
@@ -41,8 +43,8 @@ import { spacing, radii } from '../src/theme/tokens';
 
 const { width } = Dimensions.get('window');
 
-const GRID_COLUMNS = 3;
-const GRID_GAP = 16;
+const GRID_COLUMNS = 4;
+const GRID_GAP = 19;
 const GRID_SIDE_INSET = 16;
 const CARD_WIDTH = (width - GRID_SIDE_INSET * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
@@ -156,6 +158,7 @@ const DesignScreen = () => {
   const { status } = useSubscriptionStatus();
   const insets = useSafeAreaInsets();
   const isPremium = status !== 'free';
+  const { width: windowWidth } = useWindowDimensions();
 
   const selectedColor = useSelectionStore((state) => state.selectedColor);
   const selectedShape = useSelectionStore((state) => state.selectedShape);
@@ -679,10 +682,12 @@ const DesignScreen = () => {
     const isSelected = selectedColor?.variantId === item.colorVariantId;
     const columnPosition = index % GRID_COLUMNS;
 
+    const cardWidth = Math.max(1, (windowWidth - GRID_SIDE_INSET * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS)
     return (
       <TouchableOpacity
         style={[
           styles.colorItem,
+          { width: cardWidth },
           columnPosition !== GRID_COLUMNS - 1 && { marginRight: GRID_GAP },
           isSelected && styles.colorItemSelected,
         ]}
@@ -748,7 +753,7 @@ const DesignScreen = () => {
         <FlatList
           data={entries}
           keyExtractor={(item) => item.colorVariantId}
-          numColumns={3}
+          numColumns={4}
           renderItem={renderColorItem}
           ListHeaderComponent={listHeader}
           ListFooterComponent={renderFooter}
@@ -801,7 +806,7 @@ const DesignScreen = () => {
             >
               {SHAPES.map((shape) => {
                 const active = selectedShape?.id === shape.id;
-              const locked = !PAYWALL_DISABLED && !isPremium && shape.id !== 'almond' && shape.id !== 'keep';
+                const locked = !PAYWALL_DISABLED && !isPremium && shape.id !== 'almond' && shape.id !== 'keep';
                 const label = shape.id === 'keep' ? 'None' : shape.name;
                 return (
                   <TouchableOpacity
@@ -825,6 +830,7 @@ const DesignScreen = () => {
             </ScrollView>
             {canContinue ? (
               <TouchableOpacity style={styles.continueButton} onPress={handleContinue} activeOpacity={0.88}>
+                {/* Gradient deferred: solid pink for now */}
                 <Text style={styles.continueButtonText}>Continue</Text>
                 <Ionicons name="arrow-forward" size={18} color="#111" />
               </TouchableOpacity>
@@ -834,21 +840,12 @@ const DesignScreen = () => {
       </View>
 
       <LiquidGlassTabBar
-        tabs={[
-          { icon: 'color-palette', label: 'Design', route: 'Design' },
-          { icon: 'camera', label: 'Camera', route: 'Camera' },
-          { icon: 'grid', label: 'Feed', route: 'Feed' },
-        ]}
         activeTab="Design"
         onTabPress={(route) => {
-          if (route === 'Camera') {
-            setTimeout(() => {
-              navigation.navigate('Camera');
-            }, 120);
-          } else if (route === 'Feed') {
-            navigation.navigate('Feed');
-          }
+          if (route === 'Design') return
+          if (route === 'Feed') navigation.navigate('Feed')
         }}
+        onCameraPress={() => navigation.navigate('Camera')}
       />
     </SafeAreaView>
   );
@@ -969,42 +966,6 @@ const DesignListHeader = React.memo((props: DesignListHeaderProps) => {
       <View style={[styles.heroHeader, { paddingTop: 0 }]}>
         <Text style={styles.heroTitleText}>Design</Text>
 
-        <NativeLiquidGlass
-          style={styles.searchContainer}
-          intensity={Math.max(theme.glassIntensity - 4, 40)}
-          tint={theme.glassTint}
-          cornerRadius={radii.lg}
-          borderWidth={0.6}
-        >
-          <View style={styles.searchInner}>
-            <Ionicons name="search" size={18} color="rgba(60,60,67,0.6)" />
-            <TextInput
-              value={searchTerm}
-              onChangeText={onSearchTermChange}
-              placeholder="Search shades or collections"
-              placeholderTextColor="rgba(60,60,67,0.35)"
-              style={[styles.searchInput, { color: theme.text }]}
-              autoCorrect={false}
-              autoCapitalize="none"
-              returnKeyType="search"
-              accessibilityLabel="Search colours"
-              accessibilityHint="Filters the catalogue by the text you enter."
-            />
-            {searchTerm.length > 0 && (
-              <TouchableOpacity
-                onPress={() => onSearchTermChange('')}
-                accessibilityRole="button"
-                accessibilityLabel="Clear search"
-                accessibilityHint="Clears the current search term"
-                style={styles.searchClearButton}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="close-circle" size={18} color="rgba(60,60,67,0.45)" />
-              </TouchableOpacity>
-            )}
-          </View>
-        </NativeLiquidGlass>
-
         <View style={[styles.horizontalScrollContainer, primaryPeekStyle]}>
           <ScrollView
             onLayout={(event) => {
@@ -1054,6 +1015,7 @@ const DesignListHeader = React.memo((props: DesignListHeaderProps) => {
                   activeOpacity={0.85}
                   onPress={() => onPrimaryFilterSelect(filter.id)}
                 >
+                  {/* Gradients deferred: use solid selected style only */}
                   <Text style={[styles.primaryFilterText, active && styles.primaryFilterTextActive]}>{filter.label}</Text>
                 </TouchableOpacity>
               );
@@ -1214,20 +1176,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: 'rgba(118,118,128,0.12)',
-    marginRight: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(60,60,67,0.10)',
+    marginRight: 13,
   },
   primaryFilterChipActive: {
-    backgroundColor: 'rgba(231,10,90,0.18)',
+    borderColor: 'transparent',
+    backgroundColor: '#FF9BC5',
   },
   primaryFilterText: {
     fontSize: 15,
-    fontWeight: '500',
-    color: '#1f1f1f',
+    fontWeight: '600',
+    color: 'rgba(31,31,31,0.65)',
   },
   primaryFilterTextActive: {
-    color: '#111111',
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   categoriesSection: {
     marginTop: 12,
@@ -1420,7 +1385,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FF9BC5',
+    backgroundColor: '#FF9BC5', // base color; gradient overlay below
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1435,4 +1400,5 @@ const styles = StyleSheet.create({
   lockIconSmall: {
     marginLeft: 6,
   },
+  // No heart inside sheet in original
 });

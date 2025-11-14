@@ -450,15 +450,12 @@ export default function CameraScreen({ navigation }: Props) {
 
       {/* Floating Glass Tab Bar */}
       <LiquidGlassTabBar
-        tabs={[
-          { icon: 'color-palette', label: 'Design', route: 'Design' },
-          { icon: 'camera', label: 'Camera', route: 'Camera' },
-          { icon: 'grid', label: 'Feed', route: 'Feed' },
-        ]}
-        activeTab="Camera"
-        onTabPress={handleTabPress}
+        activeTab={''}
+        onTabPress={handleTabPress as any}
+        onCameraPress={() => {}}
         collapsed={tabBarCollapsed}
       />
+
 
       {/* Processing indicator */}
       {isProcessing && (
