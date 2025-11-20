@@ -295,7 +295,14 @@ export default function LoginScreen({ navigation }: Props) {
             <View style={styles.formSection}>
               <View style={styles.passwordLabelRow}>
                 <Text style={styles.label}>Password</Text>
-                <TouchableOpacity onPress={handleForgotPassword} activeOpacity={0.8}>
+                <TouchableOpacity
+                  onPress={handleForgotPassword}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Forgot password"
+                  accessibilityHint="Send yourself a password reset link."
+                  hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                >
                   <Text style={styles.link}>Forgot?</Text>
                 </TouchableOpacity>
               </View>
@@ -386,9 +393,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingTop: 12,
+    paddingBottom: 32,
     flexGrow: 1,
-    justifyContent: 'space-between',
   },
   topSection: { flexShrink: 1 },
   appleButtonWrapper: {
@@ -401,6 +408,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderRadius: 24,
     overflow: 'hidden',
+    marginTop: 32,
   },
   appleButton: {
     height: 48,
@@ -485,12 +493,15 @@ const styles = StyleSheet.create({
   },
   passwordInput: {
     flex: 1,
-    paddingRight: 42,
+    paddingRight: 54,
   },
   eyeButton: {
     position: 'absolute',
-    right: 12,
-    padding: 6,
+    right: 4,
+    height: 44,
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButton: {
     marginTop: 6,

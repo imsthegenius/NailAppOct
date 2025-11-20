@@ -9,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
   DeviceEventEmitter,
+  Share,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -20,8 +22,11 @@ import * as FileSystem from 'expo-file-system';
 import { supabase } from '../lib/supabase';
 import { uploadImageToSupabase, saveNailLook } from '../lib/supabaseStorage';
 import { GlassToast } from '../components/ui/GlassToast';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors } from '../hooks/useColorScheme';
+import { NativeLiquidGlass } from '../components/ui/NativeLiquidGlass';
+import { LiquidGlassTabBar } from '../components/ui/LiquidGlassTabBar';
+import * as Sharing from 'expo-sharing';
 
 type ResultsScreenNavigationProp = StackNavigationProp<MainStackParamList, 'Results'>;
 
@@ -76,10 +81,18 @@ export default function ResultsScreen({ navigation, route }: Props) {
   const { imageUri, originalImageUri, transformedBase64, originalBase64 } = route.params;
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const insets = useSafeAreaInsets();
   
   const selectedColor = useSelectionStore((state) => state.selectedColor);
   const selectedShape = useSelectionStore((state) => state.selectedShape);
   const theme = useThemeColors();
+  const capsulePrimary = selectedColor?.name || 'Colour Title';
+  const capsuleBrand =
+    selectedColor?.brand ||
+    selectedColor?.productLine ||
+    selectedColor?.collection ||
+    'Brand';
+  const capsuleShape = selectedShape?.name || 'Category';
 
   useEffect(() => {
     if (!imageUri) {
@@ -315,12 +328,61 @@ export default function ResultsScreen({ navigation, route }: Props) {
     // Navigate to Design screen to make new selections
     setTimeout(() => {
       navigation.navigate('Design', {
-        fromResults: true,
         photoData: {
           imageUri: originalImageUri || imageUri,
         }
       });
     }, 50);
+  };
+
+  const handleShare = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    try {
+      if (imageUri.startsWith('http://') || imageUri.startsWith('https://')) {
+        // Try sharing URL directly first
+        await Share.share({
+          url: imageUri,
+          message: `Check out my nail look: ${selectedColor?.name || 'Custom'} • ${selectedShape?.name || 'Shape'}`,
+        });
+      } else if (imageUri.startsWith('file://')) {
+        // For local files, use Sharing
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(imageUri, {
+            mimeType: 'image/jpeg',
+            dialogTitle: 'Share your nail look',
+          });
+        } else {
+          Alert.alert('Sharing not available', 'Sharing is not available on this device.');
+        }
+      } else if (imageUri.startsWith('data:')) {
+        // Convert base64 to temp file
+        const base64Data = imageUri.split(',')[1];
+        const tempPath = `${FileSystem.cacheDirectory}share-temp-${Date.now()}.jpg`;
+        await FileSystem.writeAsStringAsync(tempPath, base64Data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(tempPath, {
+            mimeType: 'image/jpeg',
+            dialogTitle: 'Share your nail look',
+          });
+        }
+        
+        // Clean up temp file
+        try {
+          await FileSystem.deleteAsync(tempPath, { idempotent: true });
+        } catch {}
+      }
+    } catch (error: any) {
+      if (error?.message !== 'User canceled the share') {
+        console.error('Share error:', error);
+        Alert.alert('Share Failed', 'Unable to share the image. Please try again.');
+      }
+    }
   };
 
   return (
@@ -332,66 +394,89 @@ export default function ResultsScreen({ navigation, route }: Props) {
         resizeMode="cover"
       />
 
-      {/* Simple top bar with style info */}
-      <SafeAreaView style={styles.topSection}>
+      {/* Top glass bar - Figma: back button (44x44) + info capsule (horizontal layout) */}
+      <SafeAreaView style={styles.topSection} edges={['top']}>
         <View style={styles.topBar}>
+          {/* Back button - Figma spec: 44x44 with glass effect */}
           <TouchableOpacity 
-            style={styles.closeButton}
+            style={styles.backButton}
             onPress={() => {
               setTimeout(() => navigation.navigate('Camera'), 120);
             }}
+            activeOpacity={0.85}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name="close" size={24} color="white" />
+            <NativeLiquidGlass
+              style={styles.backButtonGlass}
+              intensity={70}
+              tint="light"
+              cornerRadius={22}
+              borderWidth={0.8}
+            >
+              <Ionicons name="arrow-back" size={15} color="#FFFFFF" />
+            </NativeLiquidGlass>
           </TouchableOpacity>
           
-          <View style={styles.styleInfo}>
-            <View style={[styles.colorChip, { backgroundColor: accentColor }]} />
-            <View>
-              <Text style={styles.styleText}>
-                {selectedColor?.name || 'Color'} • {selectedShape?.name || 'Shape'}
-              </Text>
-              {selectedColor?.brand ? (
-                <Text style={styles.styleMeta}>
-                  {selectedColor.brand}
-                  {selectedColor.productLine ? ` · ${selectedColor.productLine}` : ''}
-                  {selectedColor.finish ? ` · ${selectedColor.finish}` : ''}
-                  {selectedColor.shadeCode ? ` · ${selectedColor.shadeCode}` : ''}
-                </Text>
-              ) : null}
-            </View>
+          {/* Info capsule - horizontal layout with color/brand/category */}
+          <View style={styles.infoCapsuleWrapper}>
+            <NativeLiquidGlass
+              style={styles.infoCapsule}
+              intensity={60}
+              tint="light"
+              cornerRadius={10}
+              borderWidth={0.8}
+            >
+              <View style={styles.infoCapsuleRow}>
+                <View style={[styles.infoColorDot, { backgroundColor: capsuleColorHex }]} />
+                <View style={styles.infoCapsuleTextRow}>
+                  <Text style={[styles.infoCapsuleTitle, styles.infoCapsulePrimary]} numberOfLines={1}>
+                    {capsulePrimary}
+                  </Text>
+                  <Text style={styles.infoCapsuleMeta} numberOfLines={1}>
+                    {capsuleBrand}
+                  </Text>
+                  <Text style={styles.infoCapsuleMeta} numberOfLines={1}>
+                    {capsuleShape}
+                  </Text>
+                </View>
+              </View>
+            </NativeLiquidGlass>
           </View>
         </View>
       </SafeAreaView>
 
-      {/* Bottom action buttons */}
-      <View style={styles.bottomSection}>
-        <View style={styles.bottomButtons}>
-          <TouchableOpacity 
-            style={styles.saveButton}
-            onPress={handleSave}
-            disabled={isSaving}
-            activeOpacity={0.8}
+      {/* Save CTA - Figma spec: 350x57px button with glass background */}
+      <View style={styles.saveSection}>
+        <TouchableOpacity 
+          style={styles.saveButton}
+          onPress={handleSave}
+          disabled={isSaving}
+          activeOpacity={0.85}
+        >
+          <NativeLiquidGlass
+            style={styles.saveButtonGlass}
+            intensity={50}
+            tint="light"
+            cornerRadius={20}
+            borderWidth={0.8}
           >
             {isSaving ? (
               <ActivityIndicator color="white" />
             ) : (
-              <>
-                <Ionicons name="download-outline" size={24} color="white" />
-                <Text style={styles.saveButtonText}>Save</Text>
-              </>
+              <Text style={styles.saveButtonText}>Save</Text>
             )}
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.secondaryButton}
-            onPress={handleMakeDifferentSelection}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="color-palette-outline" size={22} color="white" />
-            <Text style={styles.secondaryButtonText}>Different Selection</Text>
-          </TouchableOpacity>
-        </View>
+          </NativeLiquidGlass>
+        </TouchableOpacity>
       </View>
+
+      <LiquidGlassTabBar
+        activeTab="Design"
+        onTabPress={(route) => navigation.navigate(route)}
+        rightIcon="share-outline"
+        rightIconColor="#FF1F55"
+        onRightPress={handleShare}
+        style={[styles.resultsTabBar, { bottom: insets.bottom + 16 }]}
+      />
 
       {/* Glass Toast Notification */}
       <GlassToast 
@@ -425,6 +510,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
   },
+  // Figma spec: Top bar with back button (44x44) + info capsule
   topSection: {
     position: 'absolute',
     top: 0,
@@ -435,91 +521,120 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
+    paddingHorizontal: 12,
+    paddingTop: 0,
+    gap: 0,
+    height: 44,
   },
-  closeButton: {
+  // Figma spec: Back button - 44x44px with glass effect and inset shadows
+  backButton: {
     width: 44,
     height: 44,
+  },
+  backButtonGlass: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 22,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    shadowColor: 'rgba(0,0,0,0.13)',
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 1,
+    shadowRadius: 1,
   },
-  styleInfo: {
+  infoCapsuleWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    paddingLeft: 12,
+  },
+  infoCapsule: {
+    width: 321,
+    maxWidth: '100%',
+    height: 38,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-  },
-  colorChip: {
-    width: 20,
-    height: 20,
+    justifyContent: 'center',
     borderRadius: 10,
-    marginRight: 10,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    paddingHorizontal: 14,
+    shadowColor: 'rgba(0,0,0,0.13)',
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 1,
+    shadowRadius: 9,
   },
-  styleText: {
-    color: 'white',
+  infoCapsuleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    columnGap: 12,
+  },
+  infoCapsuleTextRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    columnGap: 32,
+  },
+  infoColorDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+  },
+  infoCapsuleTitle: {
+    fontFamily: 'System',
+    fontWeight: '600',
     fontSize: 14,
+    color: 'white',
+    textAlign: 'center',
+    flex: 1,
+  },
+  infoCapsuleMeta: {
+    fontFamily: 'System',
+    fontWeight: '500',
+    fontSize: 12,
+    color: 'white',
+    textAlign: 'center',
+    flex: 1,
+  },
+  infoCapsulePrimary: {
     fontWeight: '600',
   },
-  styleMeta: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  bottomSection: {
+  // Figma spec: Save button - 350x57px centered
+  saveSection: {
     position: 'absolute',
-    bottom: 32,
-    left: 20,
-    right: 20,
-  },
-  bottomButtons: {
-    flexDirection: 'row',
-    gap: 12,
+    bottom: 120,
+    left: (width - 350) / 2, // Center the 350px button
+    right: (width - 350) / 2,
+    zIndex: 8,
+    alignItems: 'center',
   },
   saveButton: {
-    flex: 1,
-    height: 56,
-    borderRadius: 28,
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: 350,
+    height: 57,
+  },
+  saveButtonGlass: {
+    width: 350,
+    height: 57,
+    borderRadius: 20,
     justifyContent: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    overflow: 'hidden',
+    shadowColor: 'rgba(0,0,0,0.3)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
   },
   saveButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  secondaryButton: {
-    flex: 1,
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 28,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-  },
-  secondaryButtonText: {
-    color: 'white',
-    fontSize: 16,
+    fontFamily: 'System',
     fontWeight: '600',
+    fontSize: 20,
+    color: 'white',
+    textAlign: 'center',
+  },
+  resultsTabBar: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
   },
 });

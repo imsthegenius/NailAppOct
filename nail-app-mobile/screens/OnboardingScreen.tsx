@@ -15,7 +15,6 @@ import * as Haptics from 'expo-haptics';
 import { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../navigation/types';
 import { onboardingGradients } from '../theme/gradients';
-import { useThemeColors } from '../hooks/useColorScheme';
 import { spacing, radii, typography } from '../src/theme/tokens';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -87,7 +86,6 @@ const DOT_SIZE = 10;
 export default function OnboardingScreen({ navigation }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList<Slide>>(null);
-  const theme = useThemeColors();
 
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 55 }).current;
   const onViewableItemsChanged = useRef(
@@ -133,90 +131,102 @@ export default function OnboardingScreen({ navigation }: Props) {
     }, 250);
   }, []);
 
-  const renderDefaultSlide = (item: Slide) => (
-    <View style={styles.slide}>
-      {item.showLogo ? (
-        <View style={styles.logoWrap}>
-          <Image
-            source={require('../assets/images/NailGlowLogo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+  const renderDefaultSlide = (item: Slide) => {
+    const descriptionStyle = item.id === 'choose' ? styles.description : styles.bottomSubtitle;
+
+    return (
+      <View style={styles.slide}>
+        {item.showLogo ? (
+          <View style={styles.logoWrap}>
+            <Image
+              source={require('../assets/images/NailGlowLogo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+        ) : (
+          <View style={styles.logoSpacer} />
+        )}
+
+        <View style={styles.copyWrap}>
+          <Text style={styles.title}>{item.title}</Text>
         </View>
-      ) : <View style={{ height: 24 }} />}
 
-      <View style={styles.copyWrap}>
-        <Text style={styles.title}>{item.title}</Text>
+        <View style={styles.bottomWrap}>
+          {item.description ? <Text style={descriptionStyle}>{item.description}</Text> : null}
+        </View>
       </View>
-
-      <View style={styles.bottomWrap}>
-        <Text style={styles.bottomSubtitle}>{item.description}</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const renderSlide = ({ item }: { item: Slide }) => renderDefaultSlide(item);
 
   // No large CTA footer in the simplified design
 
-  const isLastSlide = currentIndex === SLIDES.length - 1;
   const showSkip = true;
 
-  const active = SLIDES[Math.max(0, Math.min(currentIndex, SLIDES.length - 1))]
+  const active = SLIDES[Math.max(0, Math.min(currentIndex, SLIDES.length - 1))];
 
   return (
     <View style={styles.fullscreen}>
-      <LinearGradient colors={active.gradient} start={active.gradientStart ?? { x: 0.5, y: 0 }} end={active.gradientEnd ?? { x: 0.5, y: 1 }} style={StyleSheet.absoluteFill} />
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="light" backgroundColor="transparent" translucent />
+      <LinearGradient
+        colors={active.gradient}
+        start={active.gradientStart ?? { x: 0.5, y: 0 }}
+        end={active.gradientEnd ?? { x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="light" backgroundColor="transparent" translucent />
 
-      <View style={styles.carouselContainer}>
-        <FlatList
-          ref={flatListRef}
-          data={SLIDES}
-          keyExtractor={(item) => item.id}
-          renderItem={renderSlide}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          bounces={false}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig}
-          onScrollToIndexFailed={handleScrollToIndexFailed}
-          initialNumToRender={SLIDES.length}
-          windowSize={SLIDES.length}
-        />
-      </View>
-
-      <View style={styles.footer}>
-        <View style={styles.paginationRow}>
-          <View style={styles.dots}>
-            {SLIDES.map((slide, index) => (
-              <View
-                key={slide.id}
-                style={[
-                  styles.dot,
-                  index === currentIndex ? styles.dotActive : styles.dotInactive,
-                ]}
-              />
-            ))}
-          </View>
-          {showSkip ? (
-            <TouchableOpacity
-              onPress={handleSkip}
-              accessibilityRole="button"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={styles.skipButton}
-            >
-              <Text style={styles.skipText}>Skip</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.skipPlaceholder} />
-          )}
+        <View style={styles.carouselContainer}>
+          <FlatList
+            ref={flatListRef}
+            data={SLIDES}
+            keyExtractor={(item) => item.id}
+            renderItem={renderSlide}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            bounces={false}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            onScrollToIndexFailed={handleScrollToIndexFailed}
+            initialNumToRender={SLIDES.length}
+            windowSize={SLIDES.length}
+          />
         </View>
-        {/* No bottom primary button in this design */}
-      </View>
-    </SafeAreaView>
+
+        <View style={styles.footer}>
+          <View style={styles.paginationRow}>
+            <View style={styles.dots}>
+              {SLIDES.map((slide, index) => (
+                <View
+                  key={slide.id}
+                  style={[
+                    styles.dot,
+                    index === currentIndex ? styles.dotActive : styles.dotInactive,
+                  ]}
+                />
+              ))}
+            </View>
+            {showSkip ? (
+              <TouchableOpacity
+                onPress={handleSkip}
+                accessibilityRole="button"
+                accessibilityLabel="Skip onboarding"
+                accessibilityHint="Skip the remaining slides and go straight to account setup choices."
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.skipButton}
+              >
+                <Text style={styles.skipText}>Skip</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.skipPlaceholder} />
+            )}
+          </View>
+          {/* No bottom primary button in this design */}
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
@@ -244,6 +254,9 @@ const styles = StyleSheet.create({
   logo: {
     width: 120,
     height: 40,
+  },
+  logoSpacer: {
+    height: 24,
   },
   copyWrap: {
     marginTop: height * 0.02,

@@ -9,11 +9,14 @@ import { StatusBar } from 'expo-status-bar';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { supabase } from '../lib/supabase';
 import type { MainStackParamList } from '../navigation/types';
-
-const accentPink = '#ffa1ba';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
+import { useThemeColors } from '../hooks/useColorScheme';
+import { tokens } from '../src/theme/tokens';
 
 export default function ProfileScreen() {
   const navigation = useNavigation<StackNavigationProp<MainStackParamList, 'Profile'>>();
+  const theme = useThemeColors();
   const { status } = useSubscriptionStatus();
   const isPremium = status !== 'free';
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -75,7 +78,7 @@ export default function ProfileScreen() {
         await Purchases.showManageSubscriptions();
         return;
       }
-    } catch {}
+    } catch { }
 
     const iosUrl = 'itms-apps://apps.apple.com/account/subscriptions';
     const iosFallbackUrl = 'https://apps.apple.com/account/subscriptions';
@@ -92,48 +95,67 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <StatusBar style="dark" />
+      <LinearGradient
+        colors={[theme.gradientStart, theme.gradientMiddle, theme.gradientEnd]}
+        style={StyleSheet.absoluteFillObject}
+        locations={[0, 0.5, 1]}
+      />
+
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} activeOpacity={0.8}>
-          <Ionicons name="chevron-back" size={26} color={accentPink} />
+        <TouchableOpacity onPress={handleBack} activeOpacity={0.8} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={26} color={theme.accent} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity activeOpacity={0.8} onPress={() => handleSettingPress('settings')}>
-          <Ionicons name="settings-outline" size={22} color={accentPink} />
-        </TouchableOpacity>
+
+        <MaskedView
+          maskElement={
+            <Text style={[styles.headerTitle, styles.headerTitleMask]}>Profile</Text>
+          }
+        >
+          <LinearGradient
+            colors={['rgba(255,161,186,1)', 'rgba(231,10,90,1)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={[styles.headerTitle, styles.headerTitleGhost]}>Profile</Text>
+          </LinearGradient>
+        </MaskedView>
+
+        <View style={{ width: 44 }} />
+        {/* Spacer to balance the header since we removed the right icon or can put something else */}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {/* User card */}
-        <View style={styles.userCard}>
+        {/* User card - Manual Glass Style */}
+        <View style={styles.glassCard}>
           <View style={styles.userRow}>
-            <View style={styles.userIconWrap}>
-              <Ionicons name="person" size={22} color={accentPink} />
+            <View style={[styles.userIconWrap, { backgroundColor: 'rgba(255,161,186,0.15)' }]}>
+              <Ionicons name="person" size={22} color={theme.accent} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.userPrimary}>{userName || userEmail || 'Guest User'}</Text>
-              <Text style={styles.userSecondary}>{userEmail ? (isPremium ? 'Premium' : 'Free plan') : 'Not signed in'}</Text>
+              <Text style={[styles.userPrimary, { color: theme.text }]}>{userName || userEmail || 'Guest User'}</Text>
+              <Text style={[styles.userSecondary, { color: theme.textSecondary }]}>{userEmail ? (isPremium ? 'Premium' : 'Free plan') : 'Not signed in'}</Text>
             </View>
           </View>
         </View>
 
         {/* Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Settings</Text>
-          <View style={styles.menuCard}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Settings</Text>
+          <View style={styles.glassCard}>
             {menuItems.map((item, index) => (
               <TouchableOpacity
                 key={item.label}
                 style={[styles.menuItem, index === menuItems.length - 1 && styles.menuItemLast]}
                 onPress={() => handleSettingPress(item.label)}
-                activeOpacity={0.85}
+                activeOpacity={0.7}
               >
-                <View style={styles.menuIconWrap}>
-                  <Ionicons name={item.icon} size={20} color={accentPink} />
+                <View style={[styles.menuIconWrap, { backgroundColor: 'rgba(255,161,186,0.1)' }]}>
+                  <Ionicons name={item.icon} size={20} color={theme.accent} />
                 </View>
-                <Text style={styles.menuText}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={18} color={accentPink} />
+                <Text style={[styles.menuText, { color: theme.text }]}>{item.label}</Text>
+                <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
               </TouchableOpacity>
             ))}
           </View>
@@ -141,23 +163,24 @@ export default function ProfileScreen() {
 
         {/* Subscription */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Subscription</Text>
-          <View style={styles.manageSubscriptionCard}>
-            <TouchableOpacity style={styles.manageContent} activeOpacity={0.88} onPress={openManageSubscriptions}>
-              <View style={styles.manageIconWrap}>
-                <Ionicons name="card-outline" size={22} color={accentPink} />
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Subscription</Text>
+          <View style={styles.glassCard}>
+            <TouchableOpacity style={styles.manageContent} activeOpacity={0.7} onPress={openManageSubscriptions}>
+              <View style={[styles.manageIconWrap, { backgroundColor: 'rgba(255,161,186,0.2)' }]}>
+                <Ionicons name="card-outline" size={22} color={theme.accent} />
               </View>
               <View style={styles.manageTextWrap}>
-                <Text style={styles.manageTitle}>Manage Subscription</Text>
-                <Text style={styles.manageSubtitle}>Opens the App Store to update or cancel billing.</Text>
+                <Text style={[styles.manageTitle, { color: theme.text }]}>Manage Subscription</Text>
+                <Text style={[styles.manageSubtitle, { color: theme.textSecondary }]}>Opens the App Store to update or cancel billing.</Text>
               </View>
-              <Ionicons name="open-outline" size={20} color={accentPink} />
+              <Ionicons name="open-outline" size={20} color={theme.textTertiary} />
             </TouchableOpacity>
           </View>
-          <View style={[styles.manageSubscriptionCard, { marginTop: 12 }]}>
+
+          <View style={[styles.glassCard, { marginTop: 12 }]}>
             <TouchableOpacity
               style={styles.manageContent}
-              activeOpacity={0.88}
+              activeOpacity={0.7}
               onPress={async () => {
                 try {
                   const mod: any = await import('../lib/revenuecat');
@@ -174,14 +197,14 @@ export default function ProfileScreen() {
                 }
               }}
             >
-              <View style={styles.manageIconWrap}>
-                <Ionicons name="refresh-outline" size={22} color={accentPink} />
+              <View style={[styles.manageIconWrap, { backgroundColor: 'rgba(255,161,186,0.2)' }]}>
+                <Ionicons name="refresh-outline" size={22} color={theme.accent} />
               </View>
               <View style={styles.manageTextWrap}>
-                <Text style={styles.manageTitle}>Restore Purchases</Text>
-                <Text style={styles.manageSubtitle}>Re-activates your premium access on this device.</Text>
+                <Text style={[styles.manageTitle, { color: theme.text }]}>Restore Purchases</Text>
+                <Text style={[styles.manageSubtitle, { color: theme.textSecondary }]}>Re-activates your premium access on this device.</Text>
               </View>
-              <Ionicons name="checkmark-circle-outline" size={20} color={accentPink} />
+              <Ionicons name="checkmark-circle-outline" size={20} color={theme.textTertiary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -190,28 +213,28 @@ export default function ProfileScreen() {
         <View style={styles.authSection}>
           {userEmail ? (
             <TouchableOpacity
-              style={styles.signInButton}
-              activeOpacity={0.92}
+              style={styles.glassButton}
+              activeOpacity={0.8}
               onPress={async () => {
                 try {
                   await supabase.auth.signOut();
                   navigation.navigate('Login');
-                } catch {}
+                } catch { }
               }}
             >
-              <Text style={styles.signInText}>Sign Out</Text>
+              <Text style={[styles.signInText, { color: theme.text }]}>Sign Out</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={styles.signInButton}
-              activeOpacity={0.92}
+              style={styles.glassButton}
+              activeOpacity={0.8}
               onPress={() => navigation.navigate('Login')}
             >
-              <Text style={styles.signInText}>Sign In</Text>
+              <Text style={[styles.signInText, { color: theme.text }]}>Sign In</Text>
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity style={styles.deleteButton} activeOpacity={0.92} onPress={handleDeleteAccount}>
+          <TouchableOpacity style={[styles.glassButton, styles.deleteButton]} activeOpacity={0.8} onPress={handleDeleteAccount}>
             <Text style={styles.deleteButtonText}>Delete Account</Text>
           </TouchableOpacity>
         </View>
@@ -221,35 +244,85 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F6F4F0' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-  headerTitle: { fontSize: 20, fontWeight: '600', color: '#111' },
-  content: { paddingHorizontal: 20, paddingBottom: 48 },
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: tokens.spacing.page,
+    paddingTop: tokens.spacing.sm,
+    paddingBottom: tokens.spacing.md
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center'
+  },
+  headerTitleMask: {
+    backgroundColor: 'transparent',
+  },
+  headerTitleGhost: {
+    opacity: 0,
+  },
+  content: {
+    paddingHorizontal: tokens.spacing.page,
+    paddingBottom: 48
+  },
 
-  userCard: { borderRadius: 26, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,161,186,0.18)', backgroundColor: 'rgba(255,255,255,0.96)', paddingHorizontal: 18, paddingVertical: 16 },
-  userRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  userIconWrap: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,161,186,0.18)', alignItems: 'center', justifyContent: 'center' },
-  userPrimary: { fontSize: 16, fontWeight: '700', color: '#111' },
-  userSecondary: { marginTop: 2, fontSize: 13, color: 'rgba(60,60,67,0.6)' },
+  // Manual Glass Card Style - conforming to new design
+  glassCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 2,
+  },
 
-  section: { marginTop: 28 },
-  sectionTitle: { fontSize: 15, fontWeight: '600', color: '#111', marginBottom: 12 },
-  menuCard: { borderRadius: 26, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,161,186,0.18)', backgroundColor: 'rgba(255,255,255,0.9)' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,161,186,0.12)' },
+  userRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.md, padding: 18 },
+  userIconWrap: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  userPrimary: { fontSize: 17, fontWeight: '700' },
+  userSecondary: { marginTop: 2, fontSize: 14 },
+
+  section: { marginTop: tokens.spacing.xl },
+  sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: tokens.spacing.sm, marginLeft: tokens.spacing.xxs },
+
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.04)' },
   menuItemLast: { borderBottomWidth: 0 },
-  menuIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,161,186,0.12)', justifyContent: 'center', alignItems: 'center', marginRight: 14 },
-  menuText: { flex: 1, fontSize: 16, color: '#111', fontWeight: '500' },
+  menuIconWrap: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: tokens.spacing.md },
+  menuText: { flex: 1, fontSize: 16, fontWeight: '500' },
 
-  manageSubscriptionCard: { borderRadius: 26, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,161,186,0.18)', backgroundColor: 'rgba(255,255,255,0.9)' },
   manageContent: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 18 },
-  manageIconWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,161,186,0.28)', alignItems: 'center', justifyContent: 'center' },
-  manageTextWrap: { flex: 1, marginLeft: 16 },
-  manageTitle: { fontSize: 16, fontWeight: '600', color: '#111' },
-  manageSubtitle: { fontSize: 13, color: '#444', marginTop: 2 },
+  manageIconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  manageTextWrap: { flex: 1, marginLeft: tokens.spacing.md },
+  manageTitle: { fontSize: 16, fontWeight: '600' },
+  manageSubtitle: { fontSize: 13, marginTop: 3, paddingRight: 8 },
 
-  authSection: { marginTop: 32, marginBottom: 24 },
-  signInButton: { borderRadius: 32, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.96)', borderWidth: 1, borderColor: 'rgba(255,161,186,0.18)' },
-  signInText: { color: '#111', fontSize: 17, fontWeight: '600' },
-  deleteButton: { marginTop: 14, borderRadius: 32, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,161,186,0.38)', backgroundColor: 'rgba(255,255,255,0.92)' },
-  deleteButtonText: { color: '#111', fontSize: 16, fontWeight: '600' },
+  authSection: { marginTop: tokens.spacing.xl, marginBottom: tokens.spacing.lg },
+  glassButton: {
+    borderRadius: 32,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+    shadowColor: 'rgba(0,0,0,0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+  },
+  signInText: { fontSize: 17, fontWeight: '600' },
+  deleteButton: { marginTop: 14, backgroundColor: 'rgba(255,255,255,0.5)', borderColor: 'rgba(231,10,90,0.3)' },
+  deleteButtonText: { color: '#E70A5A', fontSize: 16, fontWeight: '600' },
 });

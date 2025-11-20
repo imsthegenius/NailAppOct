@@ -6,6 +6,8 @@ When running on a physical device in Dubai, the Cloudflare worker proxy might no
 2. Cloudflare worker domain not properly configured
 3. HTTPS/SSL certificate issues on physical devices
 
+> 💡 **New helper:** if Expo’s built-in tunnel fails, follow [docs/CLOUDFLARE_TUNNEL_SETUP.md](docs/CLOUDFLARE_TUNNEL_SETUP.md) and use `npm run cf:tunnel` to forward Metro through Cloudflare. This has been the most reliable option for UAE/ME networks.
+
 ## ✅ Solution Options (Try in Order)
 
 ### Option 1: Use Expo Go with Tunnel (Easiest)

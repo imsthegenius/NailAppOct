@@ -4,12 +4,13 @@ This worker lets Expo Go call the real Gemini 2.5 image-editing API without cras
 
 ## 1. Deploy the Worker
 
-1. Go to <https://workers.cloudflare.com>, create a service (HTTP handler).
-2. In **Quick Edit**, paste the contents of `cloudflare/gemini-worker.js`.
-3. Add an environment variable binding named `GEMINI_API_KEY` with your Google Gemini key.
-4. Save and deploy.
+1. `cd nail-app-mobile`
+2. Authenticate once: `npm run cf:login`
+3. Store your Gemini key as a secret: `npm run cf:secret`
+4. Deploy: `npm run cf:deploy`
 
-You’ll get a URL such as:
+Wrangler prints a workers.dev URL such as:
+
 ```
 https://nail-gemini.YOUR-SUBDOMAIN.workers.dev
 ```

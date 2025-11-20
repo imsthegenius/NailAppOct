@@ -26,6 +26,7 @@ import {
 } from '../lib/onboardingFlow';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { screenGradients } from '../theme/gradients';
 
 const CARD_BACKGROUND = 'rgba(255, 255, 255, 0.18)';
 
@@ -341,7 +342,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 24,
+    paddingTop: 12,
     paddingBottom: 32,
+    flexGrow: 1,
   },
   backButton: {
     flexDirection: 'row',
@@ -390,11 +393,11 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(255,255,255,0.28)',
     paddingHorizontal: 16,
     color: '#fff',
     fontSize: 16,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   passwordRow: {
     flexDirection: 'row',
@@ -402,12 +405,15 @@ const styles = StyleSheet.create({
   },
   passwordInput: {
     flex: 1,
-    paddingRight: 42,
+    paddingRight: 54,
   },
   eyeButton: {
     position: 'absolute',
-    right: 12,
-    padding: 6,
+    right: 4,
+    height: 44,
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButton: {
     marginTop: 6,
@@ -442,4 +448,3 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 });
-import { screenGradients } from '../theme/gradients';

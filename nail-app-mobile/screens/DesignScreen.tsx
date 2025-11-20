@@ -41,6 +41,7 @@ import type { CategorySummary, ColorCatalogEntry } from '../src/services/colorCa
 import { fetchCategorySummaries, fetchColorCatalog, prefetchColorCatalog } from '../src/services/colorCatalog'
 import type { MainStackParamList } from '../navigation/types';
 import { spacing, radii } from '../src/theme/tokens';
+import { CATEGORY_METADATA, CATEGORY_ORDER_MAP } from '../lib/colorCategories';
 
 // Reanimated for layout + entering/exiting animations on selected labels
 import AnimatedRN, { Layout, SlideInDown, SlideOutUp, FadeInDown, FadeOutUp } from 'react-native-reanimated';
@@ -60,39 +61,6 @@ const PRODUCT_LINES: Record<string, string[]> = {
   CND: ['All', 'Shellac', 'Vinylux'],
   'The GelBottle Inc.': ['All', 'GelColor', 'BIAB'],
 };
-
-const CANONICAL_CATEGORY_ORDER = [
-  'nudes',
-  'pinks',
-  'reds',
-  'burgundy',
-  'pastels',
-  'blues',
-  'greens',
-  'purples',
-  'metallics',
-  'darks',
-  'french',
-] as const;
-
-const CATEGORY_METADATA: Record<string, { label: string; swatchColor: string }> = {
-  nudes: { label: 'Nudes', swatchColor: '#D6BFA8' },
-  pinks: { label: 'Pinks', swatchColor: '#F2A7C2' },
-  reds: { label: 'Reds', swatchColor: '#B3261E' },
-  burgundy: { label: 'Burgundy', swatchColor: '#60203B' },
-  pastels: { label: 'Pastels', swatchColor: '#E6D7F2' },
-  blues: { label: 'Blues', swatchColor: '#4A68A1' },
-  greens: { label: 'Greens', swatchColor: '#3F7F5F' },
-  purples: { label: 'Purples', swatchColor: '#6B50A7' },
-  metallics: { label: 'Metallics', swatchColor: '#C8B987' },
-  darks: { label: 'Darks', swatchColor: '#2B2B33' },
-  french: { label: 'French', swatchColor: '#F7F4F0' },
-};
-
-const CATEGORY_ORDER_MAP = CANONICAL_CATEGORY_ORDER.reduce<Record<string, number>>((acc, value, index) => {
-  acc[value] = index;
-  return acc;
-}, {});
 
 const SHAPES = [
   { id: 'keep', name: 'Keep Current' },
@@ -183,6 +151,8 @@ const DesignScreen = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
+  const loadingRef = useRef(false);
+  const [hasReachedEnd, setHasReachedEnd] = useState(false);
   const [initialising, setInitialising] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingPhoto, setPendingPhoto] = useState<{ imageUri: string; base64?: string } | null>(null);
@@ -252,6 +222,7 @@ const DesignScreen = () => {
   const loadColors = useCallback(
     async (nextPage: number, replace = false) => {
       setLoading(true);
+      loadingRef.current = true;
       setError(null);
       const { data, error: catalogError, count } = await fetchColorCatalog(
         filters,
@@ -262,14 +233,20 @@ const DesignScreen = () => {
       if (catalogError) {
         setError(catalogError.message);
       } else {
+        if (data.length === 0 && count > 0) {
+          setHasReachedEnd(true);
+        } else {
+          setHasReachedEnd(false);
+        }
         setEntries((current) => (replace ? data : [...current, ...data]));
         setTotalCount(count);
       }
       setLoading(false)
+      loadingRef.current = false;
       setInitialising(false)
 
       if (!catalogError) {
-        prefetchColorCatalog(filters, nextPage + 1, PAGE_SIZE).catch(() => {})
+        prefetchColorCatalog(filters, nextPage + 1, PAGE_SIZE).catch(() => { })
       }
     },
     [filters]
@@ -418,7 +395,7 @@ const DesignScreen = () => {
     const name = entry.shadeName || entry.colorName || 'Selected color';
     try {
       AccessibilityInfo.announceForAccessibility?.(`${name} selected`);
-    } catch {}
+    } catch { }
   };
 
   const handleShapeSelect = async (shape: { id: string; name: string; icon?: string }) => {
@@ -458,7 +435,7 @@ const DesignScreen = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const navigateToProcessing = (imageUri: string, base64?: string) => {
-      navigation.navigate('Processing' as never, {
+      navigation.navigate('Processing', {
         imageUri,
         base64,
       });
@@ -483,7 +460,7 @@ const DesignScreen = () => {
   };
 
   const loadMore = () => {
-    if (loading || entries.length >= totalCount) {
+    if (loading || loadingRef.current || entries.length >= totalCount || hasReachedEnd) {
       return;
     }
     const next = page + 1;
@@ -579,7 +556,7 @@ const DesignScreen = () => {
         category: cat.id,
         isTrending: false,
       } as typeof filters;
-      prefetchColorCatalog(prefetchFilters, 0, PAGE_SIZE).catch(() => {})
+      prefetchColorCatalog(prefetchFilters, 0, PAGE_SIZE).catch(() => { })
       prefetchedCategoryIdsRef.current.add(cat.id)
     });
   }, [
@@ -675,7 +652,7 @@ const DesignScreen = () => {
         prefetchCategory={(id) => {
           if (prefetchedCategoryIdsRef.current.has(id)) return
           const prefetchFilters = { ...filters, category: id, isTrending: false } as typeof filters
-          prefetchColorCatalog(prefetchFilters, 0, PAGE_SIZE).catch(() => {})
+          prefetchColorCatalog(prefetchFilters, 0, PAGE_SIZE).catch(() => { })
           prefetchedCategoryIdsRef.current.add(id)
         }}
       />

@@ -1,0 +1,38 @@
+## ⚠️ CRITICAL: WORKSPACE CONTEXT
+
+**The active codebase is `/nail-app-mobile/`. ALL file edits and commands MUST be executed within this directory.** The root directory contains an archived duplicate and must not be used.
+
+---
+
+# Fixing White Screen on Dev Builds: Local Network Permissions (2025-11-15)
+
+This document explains how to fix a common issue where the app shows a white screen on a physical device during development and the Xcode logs show an error like "The internet connection appears to be offline" or "Local network prohibited".
+
+## The Problem
+
+After regenerating the native [ios](cci:7://file:///Users/imraan/Downloads/NailAppNewRepo/nail-app-mobile/ios:0:0-0:0) directory (e.g., by running `npx expo prebuild --clean`), the development build on a physical device fails to load the JavaScript bundle from the Metro server, resulting in a white screen.
+
+## Root Cause
+
+This is caused by a modern iOS privacy feature. Apps are not allowed to access other devices on the local network by default. For the Expo dev client to connect to the Metro bundler running on your computer, the app must explicitly request permission from the user.
+
+This permission is configured in the app's `Info.plist` file. When we regenerate the [ios](cci:7://file:///Users/imraan/Downloads/NailAppNewRepo/nail-app-mobile/ios:0:0-0:0) directory, this configuration can be lost if it's not present in our [app.json](cci:7://file:///Users/imraan/Downloads/NailAppNewRepo/nail-app-mobile/app.json:0:0-0:0).
+
+## The Solution
+
+To ensure the build is always correct, we must add the necessary local network permissions to [nail-app-mobile/app.json](cci:7://file:///Users/imraan/Downloads/NailAppNewRepo/nail-app-mobile/app.json:0:0-0:0). The `prebuild` command will then automatically add these keys to the `Info.plist` file every time.
+
+Add the following keys to the `ios.infoPlist` object in your [app.json](cci:7://file:///Users/imraan/Downloads/NailAppNewRepo/nail-app-mobile/app.json:0:0-0:0):
+
+```json
+"ios": {
+  // ... other ios settings
+  "infoPlist": {
+    // ... other infoPlist settings- 
+    "NSLocalNetworkUsageDescription": "NailGlow needs to connect to your computer's local development server to load the app.",
+    "NSBonjourServices": [
+      "_expo-development-client._tcp"
+    ]
+    // ... other infoPlist settings
+  }
+}

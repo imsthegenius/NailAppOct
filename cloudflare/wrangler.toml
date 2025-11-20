@@ -1,0 +1,6 @@
+name = "nail-gemini"
+main = "gemini-worker.js"
+compatibility_date = "2024-11-15"
+
+[observability]
+enabled = true

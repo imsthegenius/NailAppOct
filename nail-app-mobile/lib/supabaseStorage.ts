@@ -409,7 +409,13 @@ export async function getUserLooks(userId: string): Promise<ResolvedSavedLook[]>
           collection,
           finish_override,
           swatch_url,
-          source_catalog
+          source_catalog,
+          swatch_url,
+          source_catalog,
+          color:colors!color_variants_color_id_fkey(
+            category,
+            canonical_category
+          )
         )
       `)
       .eq('user_id', userId)

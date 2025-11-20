@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -19,9 +20,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { getUserLooks, getPublicUrlFor } from '../lib/supabaseStorage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import SmartImage from '../components/common/SmartImage'
+import SmartImage from '../components/common/SmartImage';
+import { LiquidGlassTabBar } from '../components/ui/LiquidGlassTabBar';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 
 type MyLooksScreenNavigationProp = StackNavigationProp<RootStackParamList, 'MyLooks'>;
 
@@ -59,6 +63,15 @@ export default function MyLooksScreen({ navigation }: Props) {
   const [previewLook, setPreviewLook] = useState<SavedLook | null>(null);
   const [failedImageIds, setFailedImageIds] = useState<Record<string, boolean>>({});
   const [loadedImageIds, setLoadedImageIds] = useState<Record<string, boolean>>({});
+  const insets = useSafeAreaInsets();
+  const capsulePrimary = previewLook?.colorName || 'Colour Title';
+  const capsuleBrand =
+    previewLook?.colorBrand ||
+    previewLook?.productLine ||
+    previewLook?.collection ||
+    'Brand';
+  const capsuleShape = previewLook?.shapeName || 'Category';
+  const capsuleColorHex = previewLook?.colorHex || '#FFFFFF';
 
   useEffect(() => {
     loadSavedLooks();
@@ -227,6 +240,68 @@ export default function MyLooksScreen({ navigation }: Props) {
     );
   };
 
+  const handleShare = async (look: SavedLook) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    const imageUri = selectLookImageUri(look);
+    if (!imageUri) {
+      Alert.alert('Share Failed', 'No image available to share.');
+      return;
+    }
+    
+    try {
+      if (imageUri.startsWith('http://') || imageUri.startsWith('https://')) {
+        await Share.share({
+          url: imageUri,
+          message: `Check out my nail look: ${look.colorName} • ${look.shapeName}`,
+        });
+      } else if (imageUri.startsWith('file://')) {
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(imageUri, {
+            mimeType: 'image/jpeg',
+            dialogTitle: 'Share your nail look',
+          });
+        } else {
+          Alert.alert('Sharing not available', 'Sharing is not available on this device.');
+        }
+      } else if (imageUri.startsWith('data:')) {
+        const base64Data = imageUri.split(',')[1];
+        const tempPath = `${FileSystem.cacheDirectory}share-temp-${Date.now()}.jpg`;
+        await FileSystem.writeAsStringAsync(tempPath, base64Data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(tempPath, {
+            mimeType: 'image/jpeg',
+            dialogTitle: 'Share your nail look',
+          });
+        }
+        
+        try {
+          await FileSystem.deleteAsync(tempPath, { idempotent: true });
+        } catch {}
+      }
+    } catch (error: any) {
+      if (error?.message !== 'User canceled the share') {
+        console.error('Share error:', error);
+        Alert.alert('Share Failed', 'Unable to share the image. Please try again.');
+      }
+    }
+  };
+
+  const handleNavigateFromPreview = useCallback(
+    (route: 'Design' | 'Feed') => {
+      setPreviewLook(null);
+      requestAnimationFrame(() => {
+        navigation.navigate('Main', { screen: route });
+      });
+    },
+    [navigation]
+  );
+
   const selectLookImageUri = useCallback(
     (look: SavedLook) => {
       const preferOriginal = failedImageIds[look.id]
@@ -264,7 +339,7 @@ export default function MyLooksScreen({ navigation }: Props) {
             )}
           </>
         ) : (
-          <View style={[styles.lookImage, styles.lookImageFallback]}>
+          <View style={[styles.lookImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)' }]}>
             <Ionicons name="image-outline" size={20} color="#AAA" />
           </View>
         )}
@@ -357,41 +432,66 @@ export default function MyLooksScreen({ navigation }: Props) {
       </View>
 
       <Modal visible={!!previewLook} transparent animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <SmartImage uri={previewLook?.transformedImage || ''} style={styles.modalImage} transitionDurationMs={220} />
-            <View style={styles.modalInfoRow}>
-              <View style={[styles.colorIndicator, { backgroundColor: previewLook?.colorHex || '#fff' }]} />
-              <View style={styles.modalTextBlock}>
-                <Text style={styles.modalTitle}>{previewLook?.colorName}</Text>
-                {previewLook?.colorBrand ? (
-                  <Text style={styles.modalSubtitle}>
-                    {previewLook.colorBrand}
-                    {previewLook.productLine ? ` · ${previewLook.productLine}` : ''}
-                    {previewLook.colorFinish ? ` · ${previewLook.colorFinish}` : ''}
-                  </Text>
-                ) : null}
-                {previewLook?.shadeCode ? (
-                  <Text style={styles.modalSubtitle}>Shade {previewLook.shadeCode}</Text>
-                ) : null}
-                {previewLook?.collection ? (
-                  <Text style={styles.modalSubtitle}>{previewLook.collection}</Text>
-                ) : null}
-                <Text style={styles.modalSubtitle}>{previewLook?.shapeName}</Text>
-              </View>
-              <TouchableOpacity onPress={() => handleDeleteLook(previewLook!.id)} activeOpacity={0.8}>
-                <Ionicons name="trash-outline" size={22} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setPreviewLook(null)}
-              activeOpacity={0.85}
+        {previewLook ? (
+          <View style={styles.previewContainer}>
+            {/* Full-bleed preview image */}
+            <SmartImage 
+              uri={selectLookImageUri(previewLook)} 
+              style={styles.previewImage} 
+              resizeMode="cover"
+              transitionDurationMs={220} 
+            />
+
+            {/* Top glass info bar with close button - Figma spec */}
+            <View
+              style={[styles.previewTopSection, { paddingTop: insets.top + 12 }]}
+              pointerEvents="box-none"
             >
-              <Text style={styles.modalCloseText}>Close</Text>
-            </TouchableOpacity>
+              <View style={styles.previewTopBar}>
+                {/* Back button - Figma: 44x44px circular glass */}
+                <TouchableOpacity 
+                  style={styles.closeButton}
+                  onPress={() => setPreviewLook(null)}
+                  activeOpacity={0.8}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <View style={styles.closeButtonGlass}>
+                    <Ionicons name="close" size={15} color="#FFFFFF" />
+                  </View>
+                </TouchableOpacity>
+                
+                {/* Info capsule - horizontal layout */}
+                <View style={styles.previewCapsuleWrapper}>
+                  <View style={styles.previewGlassCapsule}>
+                    <View style={styles.previewCapsuleRow}>
+                      <View style={styles.previewCapsuleTextRow}>
+                        <Text style={[styles.previewTitle, styles.previewCapsulePrimary]} numberOfLines={1}>
+                          {capsulePrimary}
+                        </Text>
+                        <Text style={styles.previewMeta} numberOfLines={1}>
+                          {capsuleBrand}
+                        </Text>
+                        <Text style={styles.previewMeta} numberOfLines={1}>
+                          {capsuleShape}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.previewTopBarFiller} />
+              </View>
+            </View>
+
+            <LiquidGlassTabBar
+              activeTab="Design"
+              onTabPress={(route) => handleNavigateFromPreview(route)}
+              rightIcon="share-outline"
+              rightIconColor="#FF1F55"
+              onRightPress={previewLook ? () => handleShare(previewLook) : undefined}
+              style={[styles.previewTabBar, { bottom: insets.bottom + 16 }]}
+            />
           </View>
-        </View>
+        ) : null}
       </Modal>
     </SafeAreaView>
   );
@@ -523,58 +623,119 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
-  modalBackdrop: {
+  previewContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    backgroundColor: '#000',
   },
-  modalCard: {
-    width: '100%',
-    borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+  previewImage: {
+    position: 'absolute',
+    width: width,
+    height: '100%',
+    top: 0,
+    left: 0,
   },
-  modalImage: {
-    width: '100%',
-    height: width * 1.1,
-    borderRadius: 20,
-    marginBottom: 18,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+  // Figma spec: Top bar with back button + info capsule
+  previewTopSection: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
-  modalInfoRow: {
+  previewTopBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    paddingHorizontal: 16,
+    height: 44,
   },
-  modalTextBlock: {
-    flex: 1,
-    marginLeft: 12,
+  closeButton: {
+    width: 44,
+    height: 44,
   },
-  modalTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  modalSubtitle: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  modalCloseButton: {
-    backgroundColor: '#fff',
-    borderRadius: 999,
-    paddingVertical: 16,
+  closeButtonGlass: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.40)',
+    shadowColor: 'rgba(0,0,0,0.13)',
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 1,
+    shadowRadius: 1,
   },
-  modalCloseText: {
-    fontSize: 16,
+  previewCapsuleWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    paddingLeft: 12,
+  },
+  previewGlassCapsule: {
+    width: 321,
+    maxWidth: '100%',
+    height: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.40)',
+    shadowColor: 'rgba(0,0,0,0.13)',
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 1,
+    shadowRadius: 9,
+  },
+  previewCapsuleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    columnGap: 12,
+  },
+  previewCapsuleTextRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    columnGap: 32,
+  },
+  previewColorDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+  },
+  previewTitle: {
+    fontFamily: 'System',
     fontWeight: '600',
-    color: '#2A0B20',
+    fontSize: 14,
+    color: 'white',
+    textAlign: 'center',
+    flex: 1,
+  },
+  previewMeta: {
+    fontFamily: 'System',
+    fontWeight: '500',
+    fontSize: 12,
+    color: 'white',
+    textAlign: 'center',
+    flex: 1,
+  },
+  previewCapsulePrimary: {
+    letterSpacing: 0.1,
+  },
+  previewTopBarFiller: {
+    width: 44,
+    height: 44,
+  },
+  previewTabBar: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
   },
   imagePlaceholder: {
     ...StyleSheet.absoluteFillObject,

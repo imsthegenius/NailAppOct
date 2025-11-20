@@ -1,17 +1,18 @@
 import React, { useEffect, useRef } from 'react';
-import { 
-  View, 
-  TouchableOpacity, 
-  Text, 
-  StyleSheet, 
+import {
+  View,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
   Dimensions,
-  Platform,
-  Animated 
+  Animated,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { NativeLiquidGlass } from './NativeLiquidGlass';
 import { useThemeColors } from '../../hooks/useColorScheme';
+import { NativeLiquidGlass } from './NativeLiquidGlass';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +21,10 @@ interface LiquidGlassTabBarProps {
   activeTab: 'Design' | 'Feed' | '';
   onTabPress: (route: 'Design' | 'Feed') => void;
   onCameraPress?: () => void;
+  onRightPress?: () => void;
+  rightIcon?: keyof typeof Ionicons.glyphMap;
+  rightIconColor?: string;
+  style?: StyleProp<ViewStyle>;
   collapsed?: boolean;
   autoHide?: boolean;
 }
@@ -28,6 +33,10 @@ export const LiquidGlassTabBar: React.FC<LiquidGlassTabBarProps> = ({
   activeTab,
   onTabPress,
   onCameraPress,
+  onRightPress,
+  rightIcon,
+  rightIconColor,
+  style,
   collapsed = false,
   autoHide = true,
 }) => {
@@ -88,10 +97,15 @@ export const LiquidGlassTabBar: React.FC<LiquidGlassTabBarProps> = ({
     onTabPress(route);
   };
 
+  const resolvedRightIcon = rightIcon ?? 'camera';
+  const resolvedRightHandler = onRightPress ?? onCameraPress;
+  const resolvedRightColor = rightIconColor ?? theme.textSecondary;
+
   return (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.container,
+        style,
         {
           opacity: animatedOpacity,
           transform: [
@@ -100,21 +114,21 @@ export const LiquidGlassTabBar: React.FC<LiquidGlassTabBarProps> = ({
           ],
         }
       ]}
-      
+
     >
       {!collapsed && (
         <View style={styles.row}>
           {/* Left block: Design / Feed */}
           <View style={styles.leftBlockWrapper}>
             <NativeLiquidGlass
-              style={styles.leftBlock}
-              intensity={Math.max(20, (theme.glassIntensity || 50))}
-              tint={theme.glassTint}
+              style={styles.leftBlockGlass}
+              intensity={95} // Max blur
+              tint="light"
               cornerRadius={30}
-              borderWidth={0.75}
+              borderWidth={2} // Stronger border
             >
               <View style={styles.leftTabs}>
-                {(['Design','Feed'] as const).map((label) => {
+                {(['Design', 'Feed'] as const).map((label) => {
                   const isActive = activeTab === label
                   const icon: keyof typeof Ionicons.glyphMap = label === 'Design' ? 'expand' : 'heart'
                   return (
@@ -134,16 +148,26 @@ export const LiquidGlassTabBar: React.FC<LiquidGlassTabBarProps> = ({
             </NativeLiquidGlass>
           </View>
 
-          {/* Right circular camera */}
-          <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onCameraPress && onCameraPress(); }} activeOpacity={0.85} style={styles.cameraButton}>
+          {/* Right circular button */}
+          <TouchableOpacity
+            onPress={() => {
+              if (resolvedRightHandler) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                resolvedRightHandler();
+              }
+            }}
+            activeOpacity={resolvedRightHandler ? 0.85 : 1}
+            style={styles.cameraButton}
+            disabled={!resolvedRightHandler}
+          >
             <NativeLiquidGlass
-              style={StyleSheet.absoluteFillObject}
-              intensity={Math.max(20, (theme.glassIntensity || 50))}
-              tint={theme.glassTint}
+              style={StyleSheet.absoluteFill}
+              intensity={95}
+              tint="light"
               cornerRadius={28}
-              borderWidth={0.75}
+              borderWidth={2}
             />
-            <Ionicons name="camera" size={22} color={theme.textSecondary} />
+            <Ionicons name={resolvedRightIcon} size={22} color={resolvedRightColor} style={{ zIndex: 2 }} />
           </TouchableOpacity>
         </View>
       )}
@@ -159,25 +183,37 @@ const styles = StyleSheet.create({
     right: 20,
     height: 60,
     borderRadius: 30,
-    overflow: 'hidden',
+    overflow: 'visible', // Allow shadows to spill out
     // iOS 26 Liquid Glass shadows
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowColor: 'rgba(0, 0, 0, 0.15)',
     shadowOffset: {
       width: 0,
-      height: 10,
+      height: 8,
     },
     shadowOpacity: 1,
-    shadowRadius: 30,
+    shadowRadius: 24,
     elevation: 10,
   },
   row: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   leftBlockWrapper: { flexShrink: 1 },
-  leftBlock: { width: undefined, minWidth: 220, height: 60, borderRadius: 30, paddingHorizontal: 10, justifyContent: 'center' },
-  leftTabs: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  leftBlockGlass: {
+    width: undefined,
+    minWidth: 220,
+    height: 60,
+    borderRadius: 30,
+    // NativeLiquidGlass handles the background/blur
+  },
+  leftTabs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    height: '100%', // Ensure tabs fill the glass container
+  },
   miniTab: { width: 102, height: 50, alignItems: 'center', justifyContent: 'center' },
-  selectionPlate: { position: 'absolute', top: 4, bottom: 4, left: 8, right: 8, backgroundColor: '#ededed', borderRadius: 100 },
+  selectionPlate: { position: 'absolute', top: 4, bottom: 4, left: 8, right: 8, backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 100 },
   miniTabLabel: { fontSize: 10, marginTop: 2, fontWeight: '600' },
   miniTabLabelActive: { color: '#E11D48' },
-  miniTabLabelInactive: { color: '#999999', fontWeight: '500' },
-  cameraButton: { width: 56, height: 56, borderRadius: 28, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  miniTabLabelInactive: { color: 'rgba(31,31,31,0.65)', fontWeight: '600' },
+  cameraButton: { width: 56, height: 56, borderRadius: 28, overflow: 'visible', alignItems: 'center', justifyContent: 'center' },
+  // cameraButtonGlass removed as NativeLiquidGlass is used directly
 });

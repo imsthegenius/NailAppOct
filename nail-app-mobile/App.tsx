@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initRevenueCat } from './lib/revenuecat';
 import { PAYWALL_ENABLED } from './lib/paywall';
 import { scheduleWarmOnAppStart } from './lib/savedLooksPrefetch'
+import { SavedLooksProvider } from './src/context/SavedLooksContext';
 
 // Screens
 import SplashScreen from './screens/SplashScreen';
@@ -93,62 +94,90 @@ export default function App() {
         })
           ? current
           : {
-              internet: false,
-              supabase: false,
-              message: 'Unable to verify service status right now.',
-              isUsingProxy: false,
-            }
+            internet: false,
+            supabase: false,
+            message: 'Unable to verify service status right now.',
+            isUsingProxy: false,
+          }
       );
       setShowConnectionBanner(true);
     }
   }, []);
 
   useEffect(() => {
+    console.log('[App.tsx] Main useEffect started.');
+
     checkFirstLaunch();
-    
+
     // Set up auth listener and check initial status
     const setupAuth = async () => {
+      console.log('[App.tsx] setupAuth() called.');
       try {
+        console.log('[App.tsx] Checking initial Supabase session...');
         const { data: { session } } = await supabase.auth.getSession();
+        console.log(`[App.tsx] Initial session found: ${!!session}`);
         setIsAuthenticated(!!session);
+
         if (PAYWALL_ENABLED) {
           try {
             const userId = session?.user?.id;
+            console.log(`[App.tsx] Initializing RevenueCat for user: ${userId || 'anonymous'}`);
             await initRevenueCat(userId);
-          } catch {}
+            console.log('[App.tsx] RevenueCat initialized.');
+          } catch (rcError) {
+            console.error('[App.tsx] RevenueCat init failed:', rcError);
+          }
         }
+
         // Warm saved looks cache shortly after app start if logged in
-        try { scheduleWarmOnAppStart() } catch {}
-        
+        try {
+          console.log('[App.tsx] Warming saved looks cache...');
+          scheduleWarmOnAppStart();
+        } catch (warmError) {
+          console.error('[App.tsx] Cache warm-up failed:', warmError);
+        }
+
         // Listen for auth changes
+        console.log('[App.tsx] Subscribing to onAuthStateChange.');
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log(`[App.tsx] onAuthStateChange event: ${event}, session: ${!!session}`);
           setIsAuthenticated(!!session);
           if (PAYWALL_ENABLED) {
             try {
               await initRevenueCat(session?.user?.id);
-            } catch {}
+            } catch (rcError) {
+              console.error('[App.tsx] RevenueCat re-init failed on auth change:', rcError);
+            }
           }
-          try { if (session?.user?.id) scheduleWarmOnAppStart() } catch {}
+          try {
+            if (session?.user?.id) {
+              console.log('[App.tsx] Re-warming cache on auth change.');
+              scheduleWarmOnAppStart();
+            }
+          } catch (warmError) {
+            console.error('[App.tsx] Cache re-warm failed on auth change:', warmError);
+          }
         });
-        
+
         // Store cleanup function
         return () => {
+          console.log('[App.tsx] Unsubscribing from onAuthStateChange.');
           authListener?.subscription.unsubscribe();
         };
       } catch (error) {
-        if (__DEV__) {
-          console.error('Error checking auth status:', error);
-        }
-        setIsAuthenticated(false);
+        console.error('[App.tsx] Critical error in setupAuth:', error);
+        setIsAuthenticated(false); // Ensure we always move past the loading state
       }
     };
-    
-    const authCleanup = setupAuth();
+
+    console.log('[App.tsx] Calling setupAuth()...');
+    const authCleanupPromise = setupAuth();
 
     if (__DEV__) {
-      console.log('NailGlow App Started');
+      console.log('NailGlow App Started (DEV mode)');
     }
 
+    console.log('[App.tsx] Testing connections...');
     testConnections();
 
     // Show a brief diagnostics toast if prior crash/error captured and diagnostics flag enabled
@@ -161,7 +190,7 @@ export default function App() {
           const runtime = (Updates as any)?.runtimeVersion || (Constants?.expoConfig as any)?.runtimeVersion || undefined;
           const paywallDisabled = (getEnv('EXPO_PUBLIC_DISABLE_PAYWALL') === '1') || (Constants?.appOwnership === 'expo');
           setDiagInfo({ channel, runtime, paywallDisabled });
-        } catch {}
+        } catch { }
         const raw = await AsyncStorage.getItem('diagnostic:lastError');
         if (raw) {
           try {
@@ -172,12 +201,19 @@ export default function App() {
             setDiagToast({ visible: true, message: 'A recent error was captured' });
           }
         }
-      } catch {}
+      } catch { }
     })();
-    
+
     // Cleanup auth listener on unmount
     return () => {
-      authCleanup.then(cleanup => cleanup?.());
+      console.log('[App.tsx] Main useEffect cleanup running.');
+      authCleanupPromise.then(cleanup => {
+        if (cleanup) {
+          cleanup();
+        }
+      }).catch(err => {
+        console.error('[App.tsx] Error during auth cleanup promise resolution:', err);
+      });
     };
   }, []);
 
@@ -228,82 +264,84 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <DebugErrorBoundary>
-        {getEnv('EXPO_PUBLIC_DIAGNOSTICS') === '1' && diagInfo ? (
-          <SafeAreaView pointerEvents="none" style={{ position: 'absolute', top: 6, left: 8, zIndex: 9999 }}>
-            <GlassToast
-              visible={true}
-              icon="information-circle"
-              message={`ch:${diagInfo.channel || 'n/a'} rv:${diagInfo.runtime || 'n/a'} paywallOff:${String(diagInfo.paywallDisabled)}`}
-              duration={-1}
-              onHide={() => {}}
-            />
-          </SafeAreaView>
-        ) : null}
-        <GlassToast
-          visible={diagToast.visible}
-          icon="alert-circle"
-          message={diagToast.message}
-          duration={2200}
-          onHide={async () => {
-            setDiagToast({ visible: false, message: '' });
-            try {
-              await AsyncStorage.removeItem('diagnostic:lastError');
-            } catch {}
-          }}
-        />
-        {shouldShowBanner && connectionStatus ? (
-          <SafeAreaView pointerEvents="box-none">
-            <ConnectionStatusBanner
-              status={connectionStatus}
-              onRetry={handleRetryConnections}
-              onDismiss={handleDismissBanner}
-            />
-          </SafeAreaView>
-        ) : null}
-        <NavigationContainer>
-          <StatusBar style="dark" />
-          <Stack.Navigator
-            initialRouteName={initialRoute}
-            screenOptions={{
-              headerShown: false,
-              cardStyleInterpolator: ({ current, layouts }) => {
-                return {
-                  cardStyle: {
-                    transform: [
-                      {
-                        translateX: current.progress.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [layouts.screen.width, 0],
-                        }),
-                      },
-                    ],
-                  },
-                };
-              },
+      <SavedLooksProvider>
+        <DebugErrorBoundary>
+          {getEnv('EXPO_PUBLIC_DIAGNOSTICS') === '1' && diagInfo ? (
+            <SafeAreaView pointerEvents="none" style={{ position: 'absolute', top: 6, left: 8, zIndex: 9999 }}>
+              <GlassToast
+                visible={true}
+                icon="information-circle"
+                message={`ch:${diagInfo.channel || 'n/a'} rv:${diagInfo.runtime || 'n/a'} paywallOff:${String(diagInfo.paywallDisabled)}`}
+                duration={-1}
+                onHide={() => { }}
+              />
+            </SafeAreaView>
+          ) : null}
+          <GlassToast
+            visible={diagToast.visible}
+            icon="alert-circle"
+            message={diagToast.message}
+            duration={2200}
+            onHide={async () => {
+              setDiagToast({ visible: false, message: '' });
+              try {
+                await AsyncStorage.removeItem('diagnostic:lastError');
+              } catch { }
             }}
-          >
-            <Stack.Screen
-              name="Splash"
-              component={SplashScreen}
-              options={{ headerShown: false, gestureEnabled: false }}
-            />
-            {__DEV__ ? (
-              <Stack.Screen name="ConnectionTest" component={ConnectionTestScreen} />
-            ) : null}
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-            <Stack.Screen name="AuthLanding" component={AuthLandingScreen} />
-            <Stack.Screen name="Main" component={MainNavigator} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
-            <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
-            <Stack.Screen name="LegalAcceptance" component={LegalAcceptanceScreen} />
-            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-            <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
-            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </DebugErrorBoundary>
+          />
+          {shouldShowBanner && connectionStatus ? (
+            <SafeAreaView pointerEvents="box-none">
+              <ConnectionStatusBanner
+                status={connectionStatus}
+                onRetry={handleRetryConnections}
+                onDismiss={handleDismissBanner}
+              />
+            </SafeAreaView>
+          ) : null}
+          <NavigationContainer>
+            <StatusBar style="dark" />
+            <Stack.Navigator
+              initialRouteName={initialRoute}
+              screenOptions={{
+                headerShown: false,
+                cardStyleInterpolator: ({ current, layouts }) => {
+                  return {
+                    cardStyle: {
+                      transform: [
+                        {
+                          translateX: current.progress.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [layouts.screen.width, 0],
+                          }),
+                        },
+                      ],
+                    },
+                  };
+                },
+              }}
+            >
+              <Stack.Screen
+                name="Splash"
+                component={SplashScreen}
+                options={{ headerShown: false, gestureEnabled: false }}
+              />
+              {__DEV__ ? (
+                <Stack.Screen name="ConnectionTest" component={ConnectionTestScreen} />
+              ) : null}
+              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+              <Stack.Screen name="AuthLanding" component={AuthLandingScreen} />
+              <Stack.Screen name="Main" component={MainNavigator} />
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Signup" component={SignupScreen} />
+              <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
+              <Stack.Screen name="LegalAcceptance" component={LegalAcceptanceScreen} />
+              <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+              <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+              <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </DebugErrorBoundary>
+      </SavedLooksProvider>
     </GestureHandlerRootView>
   );
 }

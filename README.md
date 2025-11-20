@@ -60,6 +60,7 @@ NailGlow is a cutting-edge mobile application that uses AI to help users visuali
    EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
    EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
    EXPO_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
+   EXPO_PUBLIC_GEMINI_PROXY_URL=https://nail-gemini.imraan.workers.dev/
    ```
 
 4. **Start the development server**

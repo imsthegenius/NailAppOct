@@ -39,7 +39,14 @@ export default function AuthLandingScreen({ navigation }: any) {
 
         <View style={styles.footer}>
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.primary} onPress={() => navigation.replace('Signup')} accessibilityRole="button">
+            <TouchableOpacity
+              style={styles.primary}
+              onPress={() => navigation.replace('Signup')}
+              accessibilityRole="button"
+              accessibilityLabel="Create a NailGlow account"
+              accessibilityHint="Opens the sign up form so you can start creating an account."
+              activeOpacity={0.9}
+            >
               <Text style={styles.primaryText}>Create Account</Text>
             </TouchableOpacity>
 
@@ -51,6 +58,8 @@ export default function AuthLandingScreen({ navigation }: any) {
                   cornerRadius={24}
                   style={styles.apple}
                   onPress={handleApple}
+                  accessibilityLabel="Continue with Apple"
+                  accessibilityHint="Use Sign in with Apple to continue without typing your password."
                 />
                 {appleLoading && (
                   <View style={styles.appleSpinner} pointerEvents="none">
@@ -60,13 +69,20 @@ export default function AuthLandingScreen({ navigation }: any) {
               </View>
             )}
 
-            <TouchableOpacity style={styles.secondary} onPress={() => navigation.replace('Login')} accessibilityRole="button">
+            <TouchableOpacity
+              style={styles.secondary}
+              onPress={() => navigation.replace('Login')}
+              accessibilityRole="button"
+              accessibilityLabel="Log in"
+              accessibilityHint="Jump to the login screen to use an existing account."
+              activeOpacity={0.9}
+            >
               <Text style={styles.secondaryText}>Log In</Text>
             </TouchableOpacity>
           </View>
 
           <Text style={styles.legal}>
-            NailGlow uses secure email sign in. You can manage or delete your account anytime from Profile settings.
+            NailGlow uses secure email sign in. You can manage or delete your account anytime from Profile Settings.
           </Text>
         </View>
       </SafeAreaView>
@@ -84,8 +100,14 @@ const styles = StyleSheet.create({
   primaryText: { color: '#2A0B20', fontWeight: '700', fontSize: 17 },
   appleWrap: { position: 'relative' },
   apple: { width: '100%', height: 48, borderRadius: 24 },
-  appleSpinner: { ...StyleSheet.absoluteFillObject as any, alignItems: 'center', justifyContent: 'center' },
+  appleSpinner: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
   secondary: { borderRadius: 999, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', backgroundColor: 'rgba(255,255,255,0.12)' },
   secondaryText: { color: '#fff', fontWeight: '700', fontSize: 17 },
-  legal: { textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 13 },
+  legal: { textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 16, lineHeight: 18 },
 })

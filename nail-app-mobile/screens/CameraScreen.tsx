@@ -12,19 +12,17 @@ import {
   InteractionManager,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import type { MainStackParamList } from '../navigation/types';
 import { useIsFocused } from '@react-navigation/native';
-import { BlurView } from 'expo-blur';
 import { LiquidGlassTabBar } from '../components/ui/LiquidGlassTabBar';
-import { GlassmorphicView } from '../components/ui/GlassmorphicView';
 import { NativeLiquidGlass } from '../components/ui/NativeLiquidGlass';
 import { useSelectionStore } from '../lib/selectedData';
 import { BRAND_COLORS } from '../src/theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
@@ -44,16 +42,21 @@ export default function CameraScreen({ navigation }: Props) {
   const [hasLaidOut, setHasLaidOut] = useState(false);
   const [canActivateCamera, setCanActivateCamera] = useState(false);
   const [cameraRetry, setCameraRetry] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState<1 | 2>(1);
   const cameraRef = useRef<CameraView>(null);
-  const hideTabBarTimer = useRef<NodeJS.Timeout>();
+  const hideTabBarTimer = useRef<NodeJS.Timeout | null>(null);
   const hasLaidOutRef = useRef(false);
   const isFocused = useIsFocused();
 
   const selectedColor = useSelectionStore((state) => state.selectedColor);
   const selectedShape = useSelectionStore((state) => state.selectedShape);
   const selectedLength = useSelectionStore((state) => state.selectedLength);
+  const insets = useSafeAreaInsets();
 
   const shouldRenderCamera = Boolean(permission?.granted && isFocused && hasLaidOut);
+  const cornerTopOffset = Math.max(insets.top + 100, 100);
+  const cornerBottomOffset = Math.max(insets.bottom + 160, 180);
+  const bottomSectionOffset = Math.max(insets.bottom + 40, 70);
 
   // Debug log on mount
   useEffect(() => {
@@ -216,59 +219,17 @@ export default function CameraScreen({ navigation }: Props) {
     }
   };
 
-  const pickImage = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        // Match camera payload size for faster round trips
-        quality: 0.65,
-        base64: true,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        const asset = result.assets[0];
-        
-        // Check if color and nail customization are already selected
-        if (selectedColor && selectedShape) {
-          // Add delay to prevent crash
-          setTimeout(() => {
-            navigation.navigate('Processing', { 
-              imageUri: asset.uri,
-              base64: asset.base64 
-            });
-          }, 50);
-        } else {
-          // Store photo for later use and navigate to Design screen
-          await AsyncStorage.setItem('pendingPhoto', JSON.stringify({
-            imageUri: asset.uri
-          }));
-          
-          // Add delay to prevent crash
-          setTimeout(() => {
-            navigation.navigate('Design', { 
-              fromCamera: true,
-              photoData: { 
-                imageUri: asset.uri,
-                base64: asset.base64 
-              } 
-            });
-          }, 50);
-        }
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
-    }
-  };
-
   const toggleCameraFacing = () => {
     if (__DEV__) {
       console.log('Toggle camera facing pressed');
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setFacing(current => (current === 'back' ? 'front' : 'back'));
+  };
+
+  const toggleZoom = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setZoomLevel(current => (current === 1 ? 2 : 1));
   };
 
   const handleTabPress = (route: keyof MainStackParamList) => {
@@ -280,16 +241,20 @@ export default function CameraScreen({ navigation }: Props) {
     // Camera is current screen
   };
 
-  const renderGlassButton = (icon: keyof typeof Ionicons.glyphMap, onPress: () => void, label?: string) => {
-    return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-        <View style={styles.liquidGlassButton}>
-          <Ionicons name={icon} size={24} color="white" />
-          {label && <Text style={styles.buttonLabel}>{label}</Text>}
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const renderGlassButton = (icon: keyof typeof Ionicons.glyphMap, onPress: () => void, label?: string) => (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+      <NativeLiquidGlass
+        style={styles.liquidGlassButton}
+        intensity={55}
+        tint="default"
+        cornerRadius={22}
+        borderWidth={0.8}
+      >
+        <Ionicons name={icon} size={24} color="white" />
+        {label && <Text style={styles.buttonLabel}>{label}</Text>}
+      </NativeLiquidGlass>
+    </TouchableOpacity>
+  );
 
   if (!permission) {
     return (
@@ -315,23 +280,46 @@ export default function CameraScreen({ navigation }: Props) {
     <View style={styles.container} onLayout={handleLayout}>
       {/* Full screen camera */}
       {shouldRenderCamera ? (
-        <CameraView 
-          key={`cam-${cameraRetry}`}
-          style={StyleSheet.absoluteFillObject} 
-          facing={facing}
-          ref={cameraRef}
-          active={shouldRenderCamera && canActivateCamera}
-          onCameraReady={() => {
-            if (__DEV__) {
-              console.log('Camera is ready');
-            }
-            setIsCameraReady(true);
-          }}
-          onMountError={(error: any) => {
-            console.error('Camera mount error:', error);
-            Alert.alert('Camera Error', 'Failed to initialize camera. Please try again.');
-          }}
-        />
+        <>
+          <CameraView 
+            key={`cam-${cameraRetry}`}
+            style={StyleSheet.absoluteFillObject} 
+            facing={facing}
+            zoom={zoomLevel === 2 ? 0.5 : 0}
+            ref={cameraRef}
+            active={shouldRenderCamera && canActivateCamera}
+            onCameraReady={() => {
+              if (__DEV__) {
+                console.log('Camera is ready');
+              }
+              setIsCameraReady(true);
+            }}
+            onMountError={(error: any) => {
+              console.error('Camera mount error:', error);
+              Alert.alert('Camera Error', 'Failed to initialize camera. Please try again.');
+            }}
+          />
+          
+          {/* Corner framing guides (non-interactive) */}
+          <View style={styles.cornerGuidesOverlay} pointerEvents="none">
+            {/* Top left */}
+            <View style={[styles.cornerGuide, styles.cornerGuideTopLeft, { top: cornerTopOffset }]}>
+              <View style={styles.cornerGuideShape} />
+            </View>
+            {/* Top right */}
+            <View style={[styles.cornerGuide, styles.cornerGuideTopRight, { top: cornerTopOffset }]}>
+              <View style={[styles.cornerGuideShape, styles.cornerGuideRotate90]} />
+            </View>
+            {/* Bottom left */}
+            <View style={[styles.cornerGuide, styles.cornerGuideBottomLeft, { bottom: cornerBottomOffset }]}>
+              <View style={[styles.cornerGuideShape, styles.cornerGuideRotate270]} />
+            </View>
+            {/* Bottom right */}
+            <View style={[styles.cornerGuide, styles.cornerGuideBottomRight, { bottom: cornerBottomOffset }]}>
+              <View style={[styles.cornerGuideShape, styles.cornerGuideRotate180]} />
+            </View>
+          </View>
+        </>
       ) : (
         <View style={styles.cameraPlaceholder}>
           <ActivityIndicator size="small" color="#e70a5a" />
@@ -387,65 +375,59 @@ export default function CameraScreen({ navigation }: Props) {
       )}
       
       {/* Top Floating Controls - iOS 26 Style */}
-      <View style={styles.topControls}>
+      <View style={[styles.topControls, { top: insets.top + 16 }]} pointerEvents="box-none">
         <View style={styles.topControlsRow}>
           {renderGlassButton('close', () => navigation.goBack())}
           <View style={styles.topControlsCenter} />
-          {renderGlassButton('camera-reverse-outline', toggleCameraFacing)}
         </View>
       </View>
 
       {/* Bottom Capture Controls - iOS 26 Style */}
-      <View style={styles.bottomSection}>
+      <View style={[styles.bottomSection, { bottom: bottomSectionOffset }]} pointerEvents="box-none">
         {/* Camera Controls Container */}
         <View style={styles.cameraControlsContainer}>
-          {/* Main Capture Button - iOS 26 Style (centered) */}
+          {/* Zoom chip above shutter */}
           <TouchableOpacity
-            style={styles.captureButton}
-            onPress={takePicture}
-            disabled={isCapturing}
-            activeOpacity={0.9}
+            style={styles.zoomChip}
+            onPress={toggleZoom}
+            activeOpacity={0.8}
           >
-            <View style={styles.captureButtonCore} />
+            <View style={styles.zoomChipSurface}>
+              <Text style={styles.zoomChipText}>{zoomLevel}x</Text>
+            </View>
           </TouchableOpacity>
-        </View>
-        
-        {/* Glass Pill Selector - Upload/Design */}
-        <View style={styles.glassPillContainer}>
-          {/* Multiple glass layers for depth */}
-          <View style={styles.glassPillBackground} />
-          <View style={styles.glassPillBlur} />
-          
-          {/* Upload/Design Options */}
-          <View style={styles.pillOptionsRow}>
-            {/* Upload Option */}
-            <TouchableOpacity 
-              style={styles.pillOption}
-              onPress={pickImage}
-              activeOpacity={0.7}
+
+          <View style={styles.captureRow}>
+            {/* Main Capture Button - iOS 26 Style (centered) */}
+            <TouchableOpacity
+              style={styles.captureButton}
+              onPress={takePicture}
+              disabled={isCapturing || !isCameraReady}
+              activeOpacity={0.9}
             >
-              <View style={styles.pillOptionContent}>
-                <Ionicons name="cloud-upload-outline" size={20} color="#FFFFFF" />
-                <Text style={[styles.pillOptionText, { marginTop: 4 }]}>Upload</Text>
+              <View style={styles.captureOuterRing}>
+                <View style={styles.captureButtonCore} />
               </View>
             </TouchableOpacity>
-            
-            {/* Divider */}
-            <View style={styles.pillDivider} />
-            
-            {/* Design Option */}
-            <TouchableOpacity 
-              style={styles.pillOption}
-              onPress={() => navigation.navigate('Design')}
-              activeOpacity={0.7}
+
+            {/* Flip camera button aligned with shutter */}
+            <TouchableOpacity
+              style={styles.flipCameraButton}
+              onPress={toggleCameraFacing}
+              activeOpacity={0.85}
             >
-              <View style={styles.pillOptionContent}>
-                <Ionicons name="color-palette-outline" size={20} color="#FFFFFF" />
-                <Text style={[styles.pillOptionText, { marginTop: 4 }]}>Design</Text>
-              </View>
+              <NativeLiquidGlass
+                style={StyleSheet.absoluteFillObject}
+                intensity={55}
+                tint="default"
+                cornerRadius={24}
+                borderWidth={0.8}
+              />
+              <Ionicons name="camera-reverse-outline" size={22} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
+        
       </View>
 
       {/* Floating Glass Tab Bar */}
@@ -492,14 +474,13 @@ const styles = StyleSheet.create({
   },
   topControls: {
     position: 'absolute',
-    top: 60,
     left: 0,
     right: 0,
     zIndex: 10,
   },
   topControlsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     paddingHorizontal: 20,
     alignItems: 'center',
   },
@@ -510,9 +491,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -592,102 +570,125 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cornerGuidesOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 5,
+  },
+  cornerGuide: {
+    position: 'absolute',
+    width: 26,
+    height: 26,
+  },
+  cornerGuideTopLeft: {
+    left: 30,
+  },
+  cornerGuideTopRight: {
+    right: 30,
+  },
+  cornerGuideBottomLeft: {
+    left: 30,
+  },
+  cornerGuideBottomRight: {
+    right: 30,
+  },
+  cornerGuideShape: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    borderTopWidth: 2.5,
+    borderLeftWidth: 2.5,
+    borderTopColor: '#FF80B5',
+    borderLeftColor: '#FF1F55',
+    borderTopLeftRadius: 6,
+  },
+  cornerGuideRotate90: {
+    transform: [{ rotate: '90deg' }],
+  },
+  cornerGuideRotate180: {
+    transform: [{ rotate: '180deg' }],
+  },
+  cornerGuideRotate270: {
+    transform: [{ rotate: '270deg' }],
+  },
   bottomSection: {
     position: 'absolute',
-    bottom: 100,
     left: 0,
     right: 0,
   },
   cameraControlsContainer: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
+    gap: 16,
   },
-  galleryControl: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
+  captureRow: {
+    width: '100%',
     alignItems: 'center',
-  },
-  flipControl: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  glassPillContainer: {
-    width: 220,
-    height: 60,
-    alignSelf: 'center',
-    marginTop: 16,
     position: 'relative',
+    paddingHorizontal: 64,
   },
-  glassPillBackground: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-  },
-  glassPillBlur: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'transparent',
-    borderRadius: 30,
-  },
-  pillOptionsRow: {
-    flexDirection: 'row',
-    height: '100%',
+  zoomChip: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
-    justifyContent: 'space-evenly',
+    justifyContent: 'center',
   },
-  pillOption: {
-    flex: 1,
-    height: '100%',
+  zoomChipSurface: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#6D6C6A',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  pillOptionContent: {
-    alignItems: 'center',
-  },
-  pillOptionText: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 12,
+  zoomChipText: {
+    color: '#FFD300',
+    fontSize: 17,
     fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  pillDivider: {
-    width: 0.5,
-    height: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    letterSpacing: -1,
   },
   captureButton: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    width: 86,
+    height: 86,
+    borderRadius: 43,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  captureOuterRing: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: 'rgba(65, 66, 73, 0.5)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   captureButtonCore: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: 'white',
+  },
+  flipCameraButton: {
+    position: 'absolute',
+    right: 0,
+    top: 19,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: 'rgba(0,0,0,0.25)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
   },
   processingOverlay: {
     position: 'absolute',

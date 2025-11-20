@@ -14,7 +14,7 @@ let BlurView: any = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   BlurView = require('expo-blur').BlurView;
-} catch {}
+} catch { }
 
 interface NativeLiquidGlassProps {
   children?: React.ReactNode;
@@ -94,8 +94,12 @@ const styles = StyleSheet.create({
   },
   glassOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)', // Reduced opacity (was 0.15)
+    borderWidth: 1, // Thinner border (was 1.5)
+    borderColor: 'rgba(255, 255, 255, 0.3)', // Softer border (was 0.6)
+    shadowColor: 'white',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3, // Reduced glow (was 0.5)
+    shadowRadius: 8,
   },
 });

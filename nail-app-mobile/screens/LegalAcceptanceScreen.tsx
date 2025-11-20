@@ -23,6 +23,7 @@ import {
 } from '../lib/onboardingFlow';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { screenGradients } from '../theme/gradients';
 
 const CARD_BACKGROUND = 'rgba(255, 255, 255, 0.2)';
 
@@ -107,9 +108,9 @@ export default function LegalAcceptanceScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
       <LinearGradient
-        colors={['#2A0B20', '#E70A5A']}
-        start={{ x: 0, y: 1 }}
-        end={{ x: 1, y: 0 }}
+        colors={screenGradients.auth}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
@@ -137,18 +138,28 @@ export default function LegalAcceptanceScreen({ navigation, route }: Props) {
             ]}
             onPress={() => setPrivacyChecked((prev) => !prev)}
             activeOpacity={0.85}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: privacyChecked }}
+            accessibilityLabel="Privacy Policy agreement"
+            accessibilityHint="Double tap to toggle your agreement to the privacy policy."
           >
-            <View style={[styles.checkbox, privacyChecked && styles.checkboxChecked]}>
-              {privacyChecked && <Ionicons name="checkmark" size={18} color="#2A0B20" />}
-            </View>
             <View style={styles.agreementContent}>
               <Text style={styles.agreementTitle}>Privacy Policy</Text>
               <Text style={styles.agreementDescription}>
                 Learn how we handle your photos and personal data.
               </Text>
-              <TouchableOpacity onPress={handleOpenPrivacy} activeOpacity={0.8}>
+              <TouchableOpacity
+                onPress={handleOpenPrivacy}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Read full privacy policy"
+                accessibilityHint="Opens the detailed privacy policy in a new screen."
+              >
                 <Text style={styles.link}>Read full policy</Text>
               </TouchableOpacity>
+            </View>
+            <View style={[styles.checkbox, privacyChecked && styles.checkboxChecked]}>
+              {privacyChecked && <Ionicons name="checkmark" size={18} color="#2A0B20" />}
             </View>
           </TouchableOpacity>
 
@@ -160,18 +171,28 @@ export default function LegalAcceptanceScreen({ navigation, route }: Props) {
             ]}
             onPress={() => setTermsChecked((prev) => !prev)}
             activeOpacity={0.85}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: termsChecked }}
+            accessibilityLabel="Terms of Service agreement"
+            accessibilityHint="Double tap to toggle your agreement to the terms of service."
           >
-            <View style={[styles.checkbox, termsChecked && styles.checkboxChecked]}>
-              {termsChecked && <Ionicons name="checkmark" size={18} color="#2A0B20" />}
-            </View>
             <View style={styles.agreementContent}>
               <Text style={styles.agreementTitle}>Terms of Service</Text>
               <Text style={styles.agreementDescription}>
                 Understand what you can expect from NailGlow and what we expect from you.
               </Text>
-              <TouchableOpacity onPress={handleOpenTerms} activeOpacity={0.8}>
+              <TouchableOpacity
+                onPress={handleOpenTerms}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Read full terms of service"
+                accessibilityHint="Opens the full terms of service in a new screen."
+              >
                 <Text style={styles.link}>Read full terms</Text>
               </TouchableOpacity>
+            </View>
+            <View style={[styles.checkbox, termsChecked && styles.checkboxChecked]}>
+              {termsChecked && <Ionicons name="checkmark" size={18} color="#2A0B20" />}
             </View>
           </TouchableOpacity>
 
@@ -185,9 +206,12 @@ export default function LegalAcceptanceScreen({ navigation, route }: Props) {
           disabled={!readyToContinue || loading}
           onPress={handleAccept}
           activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Agree and continue"
+          accessibilityHint="Confirms the privacy policy and terms so you can start using NailGlow."
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color="#2A0B20" />
           ) : (
             <Text style={styles.primaryButtonText}>I agree and continue</Text>
           )}
@@ -209,7 +233,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#fff',
+    color: '#FF86A8',
   },
   headerSubtitle: {
     marginTop: 8,
@@ -246,7 +270,7 @@ const styles = StyleSheet.create({
   },
   agreementRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     padding: 18,
     borderRadius: 24,
     backgroundColor: 'rgba(255,255,255,0.12)',
@@ -271,7 +295,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginLeft: 16,
     backgroundColor: 'transparent',
   },
   checkboxChecked: {
@@ -280,6 +304,7 @@ const styles = StyleSheet.create({
   },
   agreementContent: {
     flex: 1,
+    paddingRight: 4,
   },
   agreementTitle: {
     fontSize: 18,

@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Focus & Structure
-We accidentally shipped the first iteration as a Next.js web client (`nail-app/`), but the production codebase now lives entirely inside `nail-app-mobile/`. The web project stays only because some scripts and Supabase assets still reference it—never ship new features there. Day-to-day work happens in `nail-app-mobile/src`, `screens/`, `components/`, `navigation/`, and `theme/`, with shared state in `lib/`. Keep root CSV catalogs current whenever Supabase seed data moves.
+The production codebase lives entirely inside `nail-app-mobile/`. An old duplicate copy at the root level has been archived to `_archived_root_duplicates/` to prevent confusion—never work in the root-level duplicate folders. Day-to-day work happens in `nail-app-mobile/src`, `screens/`, `components/`, `navigation/`, and `theme/`, with shared state in `lib/`. Keep root CSV catalogs current whenever Supabase seed data moves.
 
 ## Build & Development Commands
 From `nail-app-mobile/`: `npm install`, then `npm run start` for Expo + QR codes, `npm run ios` or `npm run android` for device builds, and `npm run web` for quick layout checks. The postinstall hook (`node scripts/patch-expo-file-system.js`) must succeed after dependency updates—rerun it manually if bundling fails. Touch the legacy web client only to regenerate assets via `npm run build` or `npm run type-check` when cross-linked tooling requires it.
