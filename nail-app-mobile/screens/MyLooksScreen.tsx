@@ -170,7 +170,7 @@ export default function MyLooksScreen({ navigation }: Props) {
               .filter((u): u is string => !!u && /^https?:/i.test(u))
               .slice(0, 9)
             await Promise.all(toPrefetch.map((u) => Image.prefetch(u)))
-          } catch {}
+          } catch { }
           return;
         }
       }
@@ -205,13 +205,13 @@ export default function MyLooksScreen({ navigation }: Props) {
         const fs = await import('expo-file-system');
         await fs.deleteAsync(uri, { idempotent: true });
       }
-    } catch {}
+    } catch { }
     setFailedImageIds((current) => (current[id] ? current : { ...current, [id]: true }));
   }, []);
 
   const handleDeleteLook = async (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
+
     Alert.alert(
       'Delete Look',
       'Are you sure you want to delete this look?',
@@ -242,13 +242,13 @@ export default function MyLooksScreen({ navigation }: Props) {
 
   const handleShare = async (look: SavedLook) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     const imageUri = selectLookImageUri(look);
     if (!imageUri) {
       Alert.alert('Share Failed', 'No image available to share.');
       return;
     }
-    
+
     try {
       if (imageUri.startsWith('http://') || imageUri.startsWith('https://')) {
         await Share.share({
@@ -271,7 +271,7 @@ export default function MyLooksScreen({ navigation }: Props) {
         await FileSystem.writeAsStringAsync(tempPath, base64Data, {
           encoding: FileSystem.EncodingType.Base64,
         });
-        
+
         const isAvailable = await Sharing.isAvailableAsync();
         if (isAvailable) {
           await Sharing.shareAsync(tempPath, {
@@ -279,10 +279,10 @@ export default function MyLooksScreen({ navigation }: Props) {
             dialogTitle: 'Share your nail look',
           });
         }
-        
+
         try {
           await FileSystem.deleteAsync(tempPath, { idempotent: true });
-        } catch {}
+        } catch { }
       }
     } catch (error: any) {
       if (error?.message !== 'User canceled the share') {
@@ -371,7 +371,7 @@ export default function MyLooksScreen({ navigation }: Props) {
       <Text style={styles.emptyStateText}>
         Your saved nail transformations will appear here
       </Text>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.emptyStateButton}
         onPress={() => navigation.navigate('Main', { screen: 'Design' })}
       >
@@ -435,11 +435,11 @@ export default function MyLooksScreen({ navigation }: Props) {
         {previewLook ? (
           <View style={styles.previewContainer}>
             {/* Full-bleed preview image */}
-            <SmartImage 
-              uri={selectLookImageUri(previewLook)} 
-              style={styles.previewImage} 
+            <SmartImage
+              uri={selectLookImageUri(previewLook)}
+              style={styles.previewImage}
               resizeMode="cover"
-              transitionDurationMs={220} 
+              transitionDurationMs={220}
             />
 
             {/* Top glass info bar with close button - Figma spec */}
@@ -449,7 +449,7 @@ export default function MyLooksScreen({ navigation }: Props) {
             >
               <View style={styles.previewTopBar}>
                 {/* Back button - Figma: 44x44px circular glass */}
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.closeButton}
                   onPress={() => setPreviewLook(null)}
                   activeOpacity={0.8}
@@ -459,7 +459,7 @@ export default function MyLooksScreen({ navigation }: Props) {
                     <Ionicons name="close" size={15} color="#FFFFFF" />
                   </View>
                 </TouchableOpacity>
-                
+
                 {/* Info capsule - horizontal layout */}
                 <View style={styles.previewCapsuleWrapper}>
                   <View style={styles.previewGlassCapsule}>

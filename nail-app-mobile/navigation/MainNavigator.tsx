@@ -1,5 +1,6 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 
 // Screens
 import CameraScreen from '../screens/CameraScreen';
@@ -14,28 +15,40 @@ import DeleteAccountScreen from '../screens/DeleteAccountScreen';
 import type { MainStackParamList } from './types';
 
 const Stack = createStackNavigator<MainStackParamList>();
+const Tab = createMaterialTopTabNavigator();
+
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      initialRouteName="Design"
+      screenOptions={{
+        lazy: false,
+        swipeEnabled: true,
+        animationEnabled: false,
+      }}
+      tabBar={() => null}
+    >
+      <Tab.Screen name="Design" component={DesignScreen} />
+      <Tab.Screen name="Camera" component={CameraScreen} />
+      <Tab.Screen name="Feed" component={FeedScreen} />
+    </Tab.Navigator>
+  );
+}
 
 export default function MainNavigator() {
   return (
     <Stack.Navigator
-      initialRouteName="Design"
       screenOptions={{
         headerShown: false,
-        // Use default stack animation settings compatible with current RN Navigation
-        // to avoid runtime issues on some devices.
-        // animationEnabled removed (deprecated in newer APIs)
         gestureEnabled: true,
       }}
     >
-      {/* Main Screens with custom tab bar */}
-      <Stack.Screen name="Camera" component={CameraScreen} />
-      <Stack.Screen name="Design" component={DesignScreen} />
-      <Stack.Screen name="Feed" component={FeedScreen} />
-      
+      <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+
       {/* Flow Screens */}
       <Stack.Screen name="Processing" component={ProcessingScreen} />
       <Stack.Screen name="Results" component={ResultsScreen} />
-      
+
       {/* Additional Screens */}
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="CompareScreen" component={CompareScreen} />

@@ -15,10 +15,14 @@ export type CompareLookParam = {
   createdAt: string;
 };
 
-export type MainStackParamList = {
-  Camera: undefined;
+export type MainTabParamList = {
   Design: { fromCamera?: boolean; photoData?: PendingPhotoPayload } | undefined;
+  Camera: undefined;
   Feed: undefined;
+};
+
+export type MainStackParamList = {
+  MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   Processing: { imageUri: string; base64?: string };
   Results: {
     imageUri: string;

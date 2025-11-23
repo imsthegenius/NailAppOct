@@ -15,6 +15,7 @@ import {
   TextInput,
   AccessibilityInfo,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -39,12 +40,12 @@ import {
 
 import type { CategorySummary, ColorCatalogEntry } from '../src/services/colorCatalog';
 import { fetchCategorySummaries, fetchColorCatalog, prefetchColorCatalog } from '../src/services/colorCatalog'
-import type { MainStackParamList } from '../navigation/types';
+import type { MainTabParamList } from '../navigation/types';
 import { spacing, radii } from '../src/theme/tokens';
 import { CATEGORY_METADATA, CATEGORY_ORDER_MAP } from '../lib/colorCategories';
 
 // Reanimated for layout + entering/exiting animations on selected labels
-import AnimatedRN, { Layout, SlideInDown, SlideOutUp, FadeInDown, FadeOutUp } from 'react-native-reanimated';
+import AnimatedRN, { Layout, SlideInDown, SlideOutUp, FadeInDown, FadeOutUp, runOnJS } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -127,8 +128,8 @@ function computeLengthForShape(shapeId: string) {
 }
 
 const DesignScreen = () => {
-  const navigation = useNavigation<StackNavigationProp<MainStackParamList, 'Design'>>();
-  const route = useRoute<RouteProp<MainStackParamList, 'Design'>>();
+  const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<MainTabParamList, 'Design'>>();
   const theme = useThemeColors();
   const { status } = useSubscriptionStatus();
   const insets = useSafeAreaInsets();
@@ -409,11 +410,11 @@ const DesignScreen = () => {
         const activeMap = info?.entitlements?.active || {};
         const active = !!(activeMap?.[ENTITLEMENT_ID] ?? Object.values(activeMap)[0]);
         if (!active) {
-          navigation.navigate('Upgrade');
+          navigation.getParent()?.navigate('Upgrade');
           return;
         }
       } catch {
-        navigation.navigate('Upgrade');
+        navigation.getParent()?.navigate('Upgrade');
         return;
       }
     }
@@ -435,7 +436,7 @@ const DesignScreen = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const navigateToProcessing = (imageUri: string, base64?: string) => {
-      navigation.navigate('Processing', {
+      navigation.getParent()?.navigate('Processing', {
         imageUri,
         base64,
       });
@@ -451,7 +452,7 @@ const DesignScreen = () => {
       }, 120);
     } else {
       setTimeout(() => {
-        navigation.navigate('Camera');
+        navigation.jumpTo('Camera');
         setTimeout(() => {
           isNavigatingRef.current = false;
         }, 250);
@@ -745,118 +746,121 @@ const DesignScreen = () => {
   const shapeDockInsetLeft = Math.max(insets.left, 16);
   const shapeDockInsetRight = Math.max(insets.right, 16);
 
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['left', 'right', 'bottom']}>
-      <LinearGradient
-        colors={[theme.gradientStart, theme.gradientMiddle, theme.gradientEnd]}
-        style={StyleSheet.absoluteFill}
-        locations={[0, 0.5, 1]}
-      />
-
-      <Animated.View
-        style={{
-          flex: 1,
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        }}
-      >
-        <FlatList
-          data={entries}
-          keyExtractor={(item) => item.colorVariantId}
-          numColumns={4}
-          renderItem={renderColorItem}
-          ListHeaderComponent={listHeader}
-          ListFooterComponent={renderFooter}
-          ListEmptyComponent={renderEmpty}
-          columnWrapperStyle={styles.columnWrapper}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          // Virtualization tuning to improve scroll/initial render performance
-          initialNumToRender={18}
-          windowSize={12}
-          maxToRenderPerBatch={18}
-          updateCellsBatchingPeriod={32}
-          removeClippedSubviews
-          onEndReachedThreshold={0.2}
-          onEndReached={loadMore}
-        />
-      </Animated.View>
-
-      <View
-        style={[
-          styles.shapeSheetWrapper,
-          {
-            bottom: insets.bottom + 80,
-            left: shapeDockInsetLeft,
-            right: shapeDockInsetRight,
-          },
-        ]}
-      >
-        <NativeLiquidGlass
-          style={styles.shapeSheet}
-          intensity={92}
-          tint="light"
-          cornerRadius={34}
-          borderWidth={0.8}
-        >
+      <View style={{ flex: 1 }}>
           <LinearGradient
-            pointerEvents="none"
-            colors={['rgba(255,255,255,0.45)', 'rgba(255,255,255,0.05)']}
-            start={{ x: 0.2, y: 0 }}
-            end={{ x: 0.8, y: 1 }}
-            style={styles.shapeSheetSheen}
+            colors={[theme.gradientStart, theme.gradientMiddle, theme.gradientEnd]}
+            style={StyleSheet.absoluteFill}
+            locations={[0, 0.5, 1]}
           />
 
-          <View style={styles.shapeContent}>
-            <Text style={styles.shapeSheetTitle}>Select Shape</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.shapeScroll}
-            >
-              {SHAPES.map((shape) => {
-                const active = selectedShape?.id === shape.id;
-                const locked = !PAYWALL_DISABLED && !isPremium && shape.id !== 'almond' && shape.id !== 'keep';
-                const label = shape.id === 'keep' ? 'None' : shape.name;
-                return (
-                  <TouchableOpacity
-                    key={shape.id}
-                    onPress={() => handleShapeSelect(shape)}
-                    style={[styles.shapeChip, active && styles.shapeChipActive, locked && styles.shapeChipLocked]}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={[styles.shapeChipText, active && styles.shapeChipTextActive]}>{label}</Text>
-                    {locked && (
-                      <Ionicons
-                        name="lock-closed"
-                        size={12}
-                        color="rgba(60,60,67,0.6)"
-                        style={styles.lockIconSmall}
-                      />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-            {canContinue ? (
-              <TouchableOpacity style={styles.continueButton} onPress={handleContinue} activeOpacity={0.88}>
-                {/* Gradient deferred: solid pink for now */}
-                <Text style={styles.continueButtonText}>Continue</Text>
-                <Ionicons name="arrow-forward" size={18} color="#111" />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        </NativeLiquidGlass>
-      </View>
+          <Animated.View
+            style={{
+              flex: 1,
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }}
+          >
+            <FlatList
+              data={entries}
+              keyExtractor={(item) => item.colorVariantId}
+              numColumns={4}
+              renderItem={renderColorItem}
+              ListHeaderComponent={listHeader}
+              ListFooterComponent={renderFooter}
+              ListEmptyComponent={renderEmpty}
+              columnWrapperStyle={styles.columnWrapper}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              // Virtualization tuning to improve scroll/initial render performance
+              initialNumToRender={18}
+              windowSize={12}
+              maxToRenderPerBatch={18}
+              updateCellsBatchingPeriod={32}
+              removeClippedSubviews
+              onEndReachedThreshold={0.2}
+              onEndReached={loadMore}
+            />
+          </Animated.View>
 
-      <LiquidGlassTabBar
-        activeTab="Design"
-        onTabPress={(route) => {
-          if (route === 'Design') return
-          if (route === 'Feed') navigation.navigate('Feed')
-        }}
-        onCameraPress={() => navigation.navigate('Camera')}
-      />
+          <View
+            style={[
+              styles.shapeSheetWrapper,
+              {
+                bottom: insets.bottom + 80,
+                left: shapeDockInsetLeft,
+                right: shapeDockInsetRight,
+              },
+            ]}
+          >
+            <NativeLiquidGlass
+              style={styles.shapeSheet}
+              intensity={92}
+              tint="light"
+              cornerRadius={34}
+              borderWidth={0.8}
+            >
+              <LinearGradient
+                pointerEvents="none"
+                colors={['rgba(255,255,255,0.45)', 'rgba(255,255,255,0.05)']}
+                start={{ x: 0.2, y: 0 }}
+                end={{ x: 0.8, y: 1 }}
+                style={styles.shapeSheetSheen}
+              />
+
+              <View style={styles.shapeContent}>
+                <Text style={styles.shapeSheetTitle}>Select Shape</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.shapeScroll}
+                >
+                  {SHAPES.map((shape) => {
+                    const active = selectedShape?.id === shape.id;
+                    const locked = !PAYWALL_DISABLED && !isPremium && shape.id !== 'almond' && shape.id !== 'keep';
+                    const label = shape.id === 'keep' ? 'None' : shape.name;
+                    return (
+                      <TouchableOpacity
+                        key={shape.id}
+                        onPress={() => handleShapeSelect(shape)}
+                        style={[styles.shapeChip, active && styles.shapeChipActive, locked && styles.shapeChipLocked]}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={[styles.shapeChipText, active && styles.shapeChipTextActive]}>{label}</Text>
+                        {locked && (
+                          <Ionicons
+                            name="lock-closed"
+                            size={12}
+                            color="rgba(60,60,67,0.6)"
+                            style={styles.lockIconSmall}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                {canContinue ? (
+                  <TouchableOpacity style={styles.continueButton} onPress={handleContinue} activeOpacity={0.88}>
+                    {/* Gradient deferred: solid pink for now */}
+                    <Text style={styles.continueButtonText}>Continue</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#111" />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </NativeLiquidGlass>
+          </View>
+
+          <LiquidGlassTabBar
+            activeTab="Design"
+            onTabPress={(route) => {
+              if (route === 'Design') return
+              if (route === 'Feed') navigation.jumpTo('Feed')
+            }}
+            onCameraPress={() => navigation.jumpTo('Camera')}
+          />
+      </View>
     </SafeAreaView>
   );
 };

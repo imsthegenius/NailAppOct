@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,22 +14,20 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { StackNavigationProp } from '@react-navigation/stack';
-import type { MainStackParamList } from '../navigation/types';
-import { useIsFocused } from '@react-navigation/native';
+import type { MainTabParamList } from '../navigation/types';
+import { useIsFocused, useFocusEffect } from '@react-navigation/native';
 import { LiquidGlassTabBar } from '../components/ui/LiquidGlassTabBar';
 import { NativeLiquidGlass } from '../components/ui/NativeLiquidGlass';
 import { useSelectionStore } from '../lib/selectedData';
 import { BRAND_COLORS } from '../src/theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { setCameraWarmupEnabled } from '../lib/cameraWarmup';
 
 const { width, height } = Dimensions.get('window');
 
-type CameraScreenNavigationProp = StackNavigationProp<MainStackParamList, 'Camera'>;
-
 type Props = {
-  navigation: CameraScreenNavigationProp;
+  navigation: any;
 };
 
 export default function CameraScreen({ navigation }: Props) {
@@ -53,10 +51,11 @@ export default function CameraScreen({ navigation }: Props) {
   const selectedLength = useSelectionStore((state) => state.selectedLength);
   const insets = useSafeAreaInsets();
 
-  const shouldRenderCamera = Boolean(permission?.granted && isFocused && hasLaidOut);
+  const shouldMountCamera = Boolean(permission?.granted && hasLaidOut);
   const cornerTopOffset = Math.max(insets.top + 100, 100);
   const cornerBottomOffset = Math.max(insets.bottom + 160, 180);
   const bottomSectionOffset = Math.max(insets.bottom + 40, 70);
+
 
   // Debug log on mount
   useEffect(() => {
@@ -66,7 +65,7 @@ export default function CameraScreen({ navigation }: Props) {
       console.log('Current selected shape:', selectedShape);
       console.log('Current selected length:', selectedLength);
     }
-    
+
     return () => {
       if (__DEV__) {
         console.log('CameraScreen unmounting');
@@ -78,14 +77,14 @@ export default function CameraScreen({ navigation }: Props) {
   useEffect(() => {
     if (!permission) {
       // Fire and forget; the UI will update based on response
-      requestPermission().catch(() => {});
+      requestPermission().catch(() => { });
     }
   }, [permission, requestPermission]);
 
   // If permission object exists but is not yet granted and can ask again, prompt once in release
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
-      requestPermission().catch(() => {});
+      requestPermission().catch(() => { });
     }
   }, [permission?.granted, permission?.canAskAgain, requestPermission]);
 
@@ -105,43 +104,52 @@ export default function CameraScreen({ navigation }: Props) {
   }, [isCapturing]);
 
   useEffect(() => {
-    if (!shouldRenderCamera && isCameraReady) {
+    if (!shouldMountCamera && isCameraReady) {
       setIsCameraReady(false);
     }
-  }, [shouldRenderCamera, isCameraReady]);
+  }, [shouldMountCamera, isCameraReady]);
 
   // Defer the initial camera activation slightly until interactions settle.
   useEffect(() => {
-    if (permission?.granted && isFocused && hasLaidOut) {
+    if (permission?.granted && hasLaidOut) {
       let mounted = true;
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
       const handle: any = InteractionManager.runAfterInteractions(() => {
         timeoutId = setTimeout(() => {
           if (mounted) setCanActivateCamera(true);
-        }, 250);
+        }, 40);
       });
       return () => {
         mounted = false;
-        setCanActivateCamera(false);
         if (timeoutId) clearTimeout(timeoutId);
-        try { handle?.cancel?.(); } catch {}
+        try { handle?.cancel?.(); } catch { }
       };
-    } else {
-      setCanActivateCamera(false);
     }
-  }, [permission?.granted, isFocused, hasLaidOut]);
+  }, [permission?.granted, hasLaidOut]);
 
   // Fallback: if layout event never fires on some devices, force-enable after a short delay once focused with permission.
   useEffect(() => {
-    if (permission?.granted && isFocused && !hasLaidOut) {
+    if (permission?.granted && !hasLaidOut) {
       const t = setTimeout(() => setHasLaidOut(true), 600);
       return () => clearTimeout(t);
     }
-  }, [permission?.granted, isFocused, hasLaidOut]);
+  }, [permission?.granted, hasLaidOut]);
+
+  // Keep camera warmup permanently disabled since main camera is always active
+  useEffect(() => {
+    setCameraWarmupEnabled(false);
+  }, []);
+
+  // Debug: Log camera state changes when focus changes
+  useEffect(() => {
+    if (__DEV__) {
+      console.log(`[Camera] Focus changed: isFocused=${isFocused}, canActivate=${canActivateCamera}, isReady=${isCameraReady}`);
+    }
+  }, [isFocused, canActivateCamera, isCameraReady]);
 
   // If camera fails to become ready shortly after activation, force a remount once.
   useEffect(() => {
-    if (shouldRenderCamera && canActivateCamera && !isCameraReady) {
+    if (shouldMountCamera && canActivateCamera && !isCameraReady) {
       const timer = setTimeout(() => {
         if (!isCameraReady) {
           setCameraRetry((n) => n + 1);
@@ -149,7 +157,7 @@ export default function CameraScreen({ navigation }: Props) {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [shouldRenderCamera, canActivateCamera, isCameraReady]);
+  }, [shouldMountCamera, canActivateCamera, isCameraReady]);
 
   const handleLayout = useCallback(() => {
     if (!hasLaidOutRef.current) {
@@ -170,15 +178,15 @@ export default function CameraScreen({ navigation }: Props) {
           // iOS optimisation to skip extra post-processing for speed
           skipProcessing: Platform.OS === 'ios',
         });
-        
+
         if (photo) {
           // Check if color and nail customization are already selected
           if (selectedColor && selectedShape) {
             // Add delay to prevent race condition crash
             setTimeout(() => {
-              navigation.navigate('Processing', { 
+              navigation.getParent()?.navigate('Processing', {
                 imageUri: photo.uri,
-                base64: photo.base64 
+                base64: photo.base64
               });
             }, 50);
           } else {
@@ -186,7 +194,7 @@ export default function CameraScreen({ navigation }: Props) {
             await AsyncStorage.setItem('pendingPhoto', JSON.stringify({
               imageUri: photo.uri
             }));
-            
+
             Alert.alert(
               'Customize Your Look',
               'Select your nail color and shape',
@@ -196,12 +204,15 @@ export default function CameraScreen({ navigation }: Props) {
                   onPress: () => {
                     // Add delay to prevent crash
                     setTimeout(() => {
-                      navigation.navigate('Design', { 
-                        fromCamera: true,
-                        photoData: { 
-                          imageUri: photo.uri,
-                          base64: photo.base64 
-                        } 
+                      navigation.getParent()?.navigate('MainTabs', {
+                        screen: 'Design',
+                        params: {
+                          fromCamera: true,
+                          photoData: {
+                            imageUri: photo.uri,
+                            base64: photo.base64
+                          }
+                        }
                       });
                     }, 50);
                   }
@@ -232,11 +243,11 @@ export default function CameraScreen({ navigation }: Props) {
     setZoomLevel(current => (current === 1 ? 2 : 1));
   };
 
-  const handleTabPress = (route: keyof MainStackParamList) => {
+  const handleTabPress = (route: keyof MainTabParamList) => {
     if (route === 'Design') {
-      navigation.navigate('Design');
+      navigation.jumpTo('Design');
     } else if (route === 'Feed') {
-      navigation.navigate('Feed');
+      navigation.jumpTo('Feed');
     }
     // Camera is current screen
   };
@@ -258,7 +269,7 @@ export default function CameraScreen({ navigation }: Props) {
 
   if (!permission) {
     return (
-      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}> 
+      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
         <ActivityIndicator size="large" color="#e70a5a" />
         <Text style={{ color: '#333', marginTop: 12 }}>Preparing camera…</Text>
       </View>
@@ -277,17 +288,17 @@ export default function CameraScreen({ navigation }: Props) {
   }
 
   return (
-    <View style={styles.container} onLayout={handleLayout}>
+    <View style={styles.container} onLayout={handleLayout} collapsable={false} removeClippedSubviews={false}>
       {/* Full screen camera */}
-      {shouldRenderCamera ? (
+      {shouldMountCamera ? (
         <>
-          <CameraView 
+          <CameraView
             key={`cam-${cameraRetry}`}
-            style={StyleSheet.absoluteFillObject} 
+            style={StyleSheet.absoluteFillObject}
             facing={facing}
             zoom={zoomLevel === 2 ? 0.5 : 0}
             ref={cameraRef}
-            active={shouldRenderCamera && canActivateCamera}
+            active={canActivateCamera}
             onCameraReady={() => {
               if (__DEV__) {
                 console.log('Camera is ready');
@@ -299,7 +310,7 @@ export default function CameraScreen({ navigation }: Props) {
               Alert.alert('Camera Error', 'Failed to initialize camera. Please try again.');
             }}
           />
-          
+
           {/* Corner framing guides (non-interactive) */}
           <View style={styles.cornerGuidesOverlay} pointerEvents="none">
             {/* Top left */}
@@ -335,7 +346,7 @@ export default function CameraScreen({ navigation }: Props) {
           <Text style={{ color: '#fff', fontSize: 11 }}>retry: {String(cameraRetry)}</Text>
         </View>
       )}
-      
+
       {/* Color/Shape Overlay on Camera Preview */}
       {(selectedColor || (selectedShape && selectedShape.id !== 'keep')) && (
         <View style={styles.selectionOverlay} pointerEvents="none">
@@ -373,7 +384,7 @@ export default function CameraScreen({ navigation }: Props) {
           </NativeLiquidGlass>
         </View>
       )}
-      
+
       {/* Top Floating Controls - iOS 26 Style */}
       <View style={[styles.topControls, { top: insets.top + 16 }]} pointerEvents="box-none">
         <View style={styles.topControlsRow}>
@@ -427,14 +438,14 @@ export default function CameraScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
         </View>
-        
+
       </View>
 
       {/* Floating Glass Tab Bar */}
       <LiquidGlassTabBar
         activeTab={''}
         onTabPress={handleTabPress as any}
-        onCameraPress={() => {}}
+        onCameraPress={() => { }}
         collapsed={tabBarCollapsed}
       />
 

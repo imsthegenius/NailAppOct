@@ -82,7 +82,7 @@ export default function ResultsScreen({ navigation, route }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const insets = useSafeAreaInsets();
-  
+
   const selectedColor = useSelectionStore((state) => state.selectedColor);
   const selectedShape = useSelectionStore((state) => state.selectedShape);
   const theme = useThemeColors();
@@ -93,10 +93,11 @@ export default function ResultsScreen({ navigation, route }: Props) {
     selectedColor?.collection ||
     'Brand';
   const capsuleShape = selectedShape?.name || 'Category';
+  const capsuleColorHex = selectedColor?.hex || '#FF1F55';
 
   useEffect(() => {
     if (!imageUri) {
-      navigation.replace('Camera');
+      navigation.replace('MainTabs', { screen: 'Camera' });
     }
   }, [imageUri, navigation]);
 
@@ -159,7 +160,7 @@ export default function ResultsScreen({ navigation, route }: Props) {
     try {
       // Get current session
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         // User must be authenticated to save
         Alert.alert(
@@ -180,7 +181,7 @@ export default function ResultsScreen({ navigation, route }: Props) {
       }
 
       const userId = session.user.id;
-      
+
       // Upload images to user-specific folder in Supabase storage
       const preparedTransformed = await ensureBase64DataUrl(
         imageUri,
@@ -319,17 +320,20 @@ export default function ResultsScreen({ navigation, route }: Props) {
 
   const handleMakeDifferentSelection = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     // Store the original photo for reuse
     await AsyncStorage.setItem('pendingPhoto', JSON.stringify({
       imageUri: originalImageUri || imageUri,
     }));
-    
+
     // Navigate to Design screen to make new selections
     setTimeout(() => {
-      navigation.navigate('Design', {
-        photoData: {
-          imageUri: originalImageUri || imageUri,
+      navigation.navigate('MainTabs', {
+        screen: 'Design',
+        params: {
+          photoData: {
+            imageUri: originalImageUri || imageUri,
+          }
         }
       });
     }, 50);
@@ -337,7 +341,7 @@ export default function ResultsScreen({ navigation, route }: Props) {
 
   const handleShare = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     try {
       if (imageUri.startsWith('http://') || imageUri.startsWith('https://')) {
         // Try sharing URL directly first
@@ -363,7 +367,7 @@ export default function ResultsScreen({ navigation, route }: Props) {
         await FileSystem.writeAsStringAsync(tempPath, base64Data, {
           encoding: FileSystem.EncodingType.Base64,
         });
-        
+
         const isAvailable = await Sharing.isAvailableAsync();
         if (isAvailable) {
           await Sharing.shareAsync(tempPath, {
@@ -371,11 +375,11 @@ export default function ResultsScreen({ navigation, route }: Props) {
             dialogTitle: 'Share your nail look',
           });
         }
-        
+
         // Clean up temp file
         try {
           await FileSystem.deleteAsync(tempPath, { idempotent: true });
-        } catch {}
+        } catch { }
       }
     } catch (error: any) {
       if (error?.message !== 'User canceled the share') {
@@ -388,8 +392,8 @@ export default function ResultsScreen({ navigation, route }: Props) {
   return (
     <View style={styles.container}>
       {/* Full screen result image */}
-      <Image 
-        source={{ uri: imageUri }} 
+      <Image
+        source={{ uri: imageUri }}
         style={styles.resultImage}
         resizeMode="cover"
       />
@@ -398,10 +402,10 @@ export default function ResultsScreen({ navigation, route }: Props) {
       <SafeAreaView style={styles.topSection} edges={['top']}>
         <View style={styles.topBar}>
           {/* Back button - Figma spec: 44x44 with glass effect */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => {
-              setTimeout(() => navigation.navigate('Camera'), 120);
+              setTimeout(() => navigation.navigate('MainTabs', { screen: 'Camera' }), 120);
             }}
             activeOpacity={0.85}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -416,7 +420,7 @@ export default function ResultsScreen({ navigation, route }: Props) {
               <Ionicons name="arrow-back" size={15} color="#FFFFFF" />
             </NativeLiquidGlass>
           </TouchableOpacity>
-          
+
           {/* Info capsule - horizontal layout with color/brand/category */}
           <View style={styles.infoCapsuleWrapper}>
             <NativeLiquidGlass
@@ -447,7 +451,7 @@ export default function ResultsScreen({ navigation, route }: Props) {
 
       {/* Save CTA - Figma spec: 350x57px button with glass background */}
       <View style={styles.saveSection}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.saveButton}
           onPress={handleSave}
           disabled={isSaving}
@@ -471,7 +475,11 @@ export default function ResultsScreen({ navigation, route }: Props) {
 
       <LiquidGlassTabBar
         activeTab="Design"
-        onTabPress={(route) => navigation.navigate(route)}
+        onTabPress={(route) => {
+          if (route === 'Design' || route === 'Feed') {
+            navigation.navigate('MainTabs', { screen: route });
+          }
+        }}
         rightIcon="share-outline"
         rightIconColor="#FF1F55"
         onRightPress={handleShare}
@@ -479,13 +487,13 @@ export default function ResultsScreen({ navigation, route }: Props) {
       />
 
       {/* Glass Toast Notification */}
-      <GlassToast 
+      <GlassToast
         visible={showToast}
         icon="checkmark-circle"
         duration={800}
         onHide={() => {
           setShowToast(false);
-          navigation.navigate('Feed');
+          navigation.navigate('MainTabs', { screen: 'Feed' });
         }}
       />
     </View>

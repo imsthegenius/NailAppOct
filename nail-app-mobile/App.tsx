@@ -17,6 +17,7 @@ import { initRevenueCat } from './lib/revenuecat';
 import { PAYWALL_ENABLED } from './lib/paywall';
 import { scheduleWarmOnAppStart } from './lib/savedLooksPrefetch'
 import { SavedLooksProvider } from './src/context/SavedLooksContext';
+import CameraWarmupView from './components/camera/CameraWarmupView';
 
 // Screens
 import SplashScreen from './screens/SplashScreen';
@@ -264,6 +265,7 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <CameraWarmupView />
       <SavedLooksProvider>
         <DebugErrorBoundary>
           {getEnv('EXPO_PUBLIC_DIAGNOSTICS') === '1' && diagInfo ? (

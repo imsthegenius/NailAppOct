@@ -14,6 +14,7 @@ import {
   Share,
   Alert,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
@@ -31,8 +32,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BRAND_COLORS } from '../src/theme/colors';
 import { tokens } from '../src/theme/tokens';
 import SmartImage from '../components/common/SmartImage';
-import type { MainStackParamList, RootStackParamList } from '../navigation/types';
+import type { MainTabParamList } from '../navigation/types';
 import { CANONICAL_CATEGORY_ORDER, CATEGORY_METADATA } from '../lib/colorCategories';
+import { runOnJS } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 4) / 2; // 2 columns with minimal spacing
@@ -79,7 +81,7 @@ type SavedLook = {
 import { useSavedLooks } from '../src/context/SavedLooksContext';
 
 export default function FeedScreen() {
-  const navigation = useNavigation<StackNavigationProp<MainStackParamList, 'Feed'>>();
+  const navigation = useNavigation<any>();
   const theme = useThemeColors();
   const insets = useSafeAreaInsets();
   const { savedLooks, loading, refresh } = useSavedLooks();
@@ -87,6 +89,7 @@ export default function FeedScreen() {
   const [selectedLook, setSelectedLook] = useState<SavedLook | null>(null);
   const [failedImageIds, setFailedImageIds] = useState<Record<string, boolean>>({});
   const [loadedImageIds, setLoadedImageIds] = useState<Record<string, boolean>>({});
+
 
   const closePreview = useCallback(() => {
     if (selectedLook) {
@@ -140,7 +143,7 @@ export default function FeedScreen() {
 
   const handleProfilePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate('Profile');
+    navigation.getParent()?.navigate('Profile');
   };
 
   const handleLookPress = (look: SavedLook) => {
@@ -245,7 +248,11 @@ export default function FeedScreen() {
     (route: 'Design' | 'Feed') => {
       setSelectedLook(null);
       requestAnimationFrame(() => {
-        navigation.navigate(route);
+        if (route === 'Design') {
+          navigation.jumpTo('Design');
+        } else {
+          navigation.jumpTo('Feed');
+        }
       });
     },
     [navigation]
@@ -345,7 +352,7 @@ export default function FeedScreen() {
       </Text>
       <TouchableOpacity
         style={styles.createButton}
-        onPress={() => navigation.navigate('Camera')}
+        onPress={() => navigation.jumpTo('Camera')}
       >
         <Text style={styles.createButtonText}>Take Photo</Text>
       </TouchableOpacity>
@@ -354,189 +361,191 @@ export default function FeedScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      {/* Beautiful gradient background */}
-      <LinearGradient
-        colors={[theme.gradientStart, theme.gradientMiddle, theme.gradientEnd]}
-        style={StyleSheet.absoluteFillObject}
-        locations={[0, 0.5, 1]}
-      />
+      <View style={{ flex: 1 }}>
+          {/* Beautiful gradient background */}
+          <LinearGradient
+            colors={[theme.gradientStart, theme.gradientMiddle, theme.gradientEnd]}
+            style={StyleSheet.absoluteFillObject}
+            locations={[0, 0.5, 1]}
+          />
 
-      {/* Content */}
-      {savedLooks.length > 0 || loading ? (
-        <FlatList
-          data={filteredLooks}
-          renderItem={renderLookItem}
-          keyExtractor={item => item.id}
-          numColumns={2}
-          showsVerticalScrollIndicator={false}
-          columnWrapperStyle={styles.columnWrapper}
-          contentContainerStyle={styles.grid}
-          initialNumToRender={12}
-          windowSize={10}
-          maxToRenderPerBatch={12}
-          updateCellsBatchingPeriod={32}
-          removeClippedSubviews
-          ListHeaderComponent={
-            <>
-              {/* Header - Text with gradient fill using MaskedView */}
-              <View style={styles.header}>
-                <MaskedView
-                  maskElement={
-                    <Text style={[styles.headerTitle, styles.headerTitleMask]}>Feed</Text>
-                  }
-                >
-                  <LinearGradient
-                    colors={['rgba(255,161,186,1)', 'rgba(231,10,90,1)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={[styles.headerTitle, styles.headerTitleGhost]}>Feed</Text>
-                  </LinearGradient>
-                </MaskedView>
-                <TouchableOpacity
-                  style={styles.profileButton}
-                  onPress={handleProfilePress}
-                >
-                  <Ionicons name="person-circle-outline" size={26} color={theme.text} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Category Filters - Reusing Design screen categories */}
-              <View style={styles.categoriesSection}>
-                <Text style={styles.sectionTitle}>Categories</Text>
-                <FlatList
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  data={CATEGORY_CARDS}
-                  renderItem={({ item }) => {
-                    const active = item.id === selectedCategory;
-                    return (
-                      <TouchableOpacity
-                        style={[styles.categoryCard, active && styles.categoryCardActive]}
-                        activeOpacity={0.85}
-                        onPress={() => {
-                          Haptics.selectionAsync();
-                          setSelectedCategory(item.id);
-                        }}
-                      >
-                        <View style={[styles.categorySwatch, { backgroundColor: item.swatchColor }]} />
-                        <Text style={[styles.categoryCardLabel, active && styles.categoryCardLabelActive]}>
-                          {item.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  }}
-                  keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.categoriesList}
-                />
-              </View>
-            </>
-          }
-        />
-      ) : (
-        <EmptyState />
-      )}
-
-      {/* Floating Liquid Glass Tab Bar */}
-      <LiquidGlassTabBar
-        activeTab="Feed"
-        onTabPress={(route) => {
-          if (route === 'Design') navigation.navigate('Design');
-        }}
-        onCameraPress={() => navigation.navigate('Camera')}
-      />
-
-      <Modal
-        visible={!!selectedLook}
-        animationType="fade"
-        transparent
-        onRequestClose={closePreview}
-      >
-        {selectedLook
-          ? (() => {
-            const previewUri = selectLookImageUri(selectedLook);
-            return (
-              <View style={styles.previewContainer}>
-                {previewUri ? (
-                  <SmartImage
-                    uri={previewUri}
-                    style={styles.previewImage}
-                    resizeMode="cover"
-                    transitionDurationMs={220}
-                    onError={() => markImageFailed(selectedLook.id, previewUri)}
-                  />
-                ) : (
-                  <View style={[styles.previewImage, styles.previewImageFallback]}>
-                    <Ionicons name="image-outline" size={42} color="rgba(255,255,255,0.7)" />
-                  </View>
-                )}
-
-                <View
-                  style={[styles.previewTopSection, { paddingTop: insets.top + 12 }]}
-                  pointerEvents="box-none"
-                >
-                  <View style={styles.previewTopBar}>
-                    <TouchableOpacity
-                      style={styles.closeButton}
-                      onPress={closePreview}
-                      activeOpacity={0.85}
-                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          {/* Content */}
+          {savedLooks.length > 0 || loading ? (
+            <FlatList
+              data={filteredLooks}
+              renderItem={renderLookItem}
+              keyExtractor={item => item.id}
+              numColumns={2}
+              showsVerticalScrollIndicator={false}
+              columnWrapperStyle={styles.columnWrapper}
+              contentContainerStyle={styles.grid}
+              initialNumToRender={12}
+              windowSize={10}
+              maxToRenderPerBatch={12}
+              updateCellsBatchingPeriod={32}
+              removeClippedSubviews
+              ListHeaderComponent={
+                <>
+                  {/* Header - Text with gradient fill using MaskedView */}
+                  <View style={styles.header}>
+                    <MaskedView
+                      maskElement={
+                        <Text style={[styles.headerTitle, styles.headerTitleMask]}>Feed</Text>
+                      }
                     >
-                      <View style={styles.closeButtonGlass}>
-                        <Ionicons name="close" size={15} color="#FFFFFF" />
-                      </View>
+                      <LinearGradient
+                        colors={['rgba(255,161,186,1)', 'rgba(231,10,90,1)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <Text style={[styles.headerTitle, styles.headerTitleGhost]}>Feed</Text>
+                      </LinearGradient>
+                    </MaskedView>
+                    <TouchableOpacity
+                      style={styles.profileButton}
+                      onPress={handleProfilePress}
+                    >
+                      <Ionicons name="person-circle-outline" size={26} color={theme.text} />
                     </TouchableOpacity>
+                  </View>
 
-                    <View style={styles.previewCapsuleWrapper}>
-                      <View style={styles.previewGlassCapsule}>
-                        <View style={styles.previewCapsuleRow}>
-                          <View style={styles.previewCapsuleTextRow}>
-                            <Text style={[styles.previewTitle, styles.previewCapsulePrimary]} numberOfLines={1}>
-                              {capsulePrimary}
+                  {/* Category Filters - Reusing Design screen categories */}
+                  <View style={styles.categoriesSection}>
+                    <Text style={styles.sectionTitle}>Categories</Text>
+                    <FlatList
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      data={CATEGORY_CARDS}
+                      renderItem={({ item }) => {
+                        const active = item.id === selectedCategory;
+                        return (
+                          <TouchableOpacity
+                            style={[styles.categoryCard, active && styles.categoryCardActive]}
+                            activeOpacity={0.85}
+                            onPress={() => {
+                              Haptics.selectionAsync();
+                              setSelectedCategory(item.id);
+                            }}
+                          >
+                            <View style={[styles.categorySwatch, { backgroundColor: item.swatchColor }]} />
+                            <Text style={[styles.categoryCardLabel, active && styles.categoryCardLabelActive]}>
+                              {item.label}
                             </Text>
-                            <Text style={styles.previewMeta} numberOfLines={1}>
-                              {capsuleBrand}
-                            </Text>
-                            <Text style={styles.previewMeta} numberOfLines={1}>
-                              {capsuleShape}
-                            </Text>
+                          </TouchableOpacity>
+                        );
+                      }}
+                      keyExtractor={(item) => item.id}
+                      contentContainerStyle={styles.categoriesList}
+                    />
+                  </View>
+                </>
+              }
+            />
+          ) : (
+            <EmptyState />
+          )}
+
+          {/* Floating Liquid Glass Tab Bar */}
+          <LiquidGlassTabBar
+            activeTab="Feed"
+            onTabPress={(route) => {
+              if (route === 'Design') navigation.jumpTo('Design');
+            }}
+            onCameraPress={() => navigation.jumpTo('Camera')}
+          />
+
+          <Modal
+            visible={!!selectedLook}
+            animationType="fade"
+            transparent
+            onRequestClose={closePreview}
+          >
+            {selectedLook
+              ? (() => {
+                const previewUri = selectLookImageUri(selectedLook);
+                return (
+                  <View style={styles.previewContainer}>
+                    {previewUri ? (
+                      <SmartImage
+                        uri={previewUri}
+                        style={styles.previewImage}
+                        resizeMode="cover"
+                        transitionDurationMs={220}
+                        onError={() => markImageFailed(selectedLook.id, previewUri)}
+                      />
+                    ) : (
+                      <View style={[styles.previewImage, styles.previewImageFallback]}>
+                        <Ionicons name="image-outline" size={42} color="rgba(255,255,255,0.7)" />
+                      </View>
+                    )}
+
+                    <View
+                      style={[styles.previewTopSection, { paddingTop: insets.top + 12 }]}
+                      pointerEvents="box-none"
+                    >
+                      <View style={styles.previewTopBar}>
+                        <TouchableOpacity
+                          style={styles.closeButton}
+                          onPress={closePreview}
+                          activeOpacity={0.85}
+                          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                        >
+                          <View style={styles.closeButtonGlass}>
+                            <Ionicons name="close" size={15} color="#FFFFFF" />
+                          </View>
+                        </TouchableOpacity>
+
+                        <View style={styles.previewCapsuleWrapper}>
+                          <View style={styles.previewGlassCapsule}>
+                            <View style={styles.previewCapsuleRow}>
+                              <View style={styles.previewCapsuleTextRow}>
+                                <Text style={[styles.previewTitle, styles.previewCapsulePrimary]} numberOfLines={1}>
+                                  {capsulePrimary}
+                                </Text>
+                                <Text style={styles.previewMeta} numberOfLines={1}>
+                                  {capsuleBrand}
+                                </Text>
+                                <Text style={styles.previewMeta} numberOfLines={1}>
+                                  {capsuleShape}
+                                </Text>
+                              </View>
+                            </View>
                           </View>
                         </View>
+
+                        <View style={styles.previewTopBarFiller} />
                       </View>
+
+                      {(selectedLook.status === 'pending' || selectedLook.status === 'error') && (
+                        <View
+                          style={[
+                            styles.previewStatusBadge,
+                            selectedLook.status === 'error' && styles.previewStatusBadgeError,
+                          ]}
+                        >
+                          <Text style={styles.previewStatusText}>
+                            {selectedLook.status === 'pending'
+                              ? 'Uploading…'
+                              : 'Upload failed — tap save again'}
+                          </Text>
+                        </View>
+                      )}
                     </View>
 
-                    <View style={styles.previewTopBarFiller} />
+                    <LiquidGlassTabBar
+                      activeTab="Design"
+                      onTabPress={(route) => handleNavigateFromPreview(route)}
+                      rightIcon="share-outline"
+                      rightIconColor="#FF1F55"
+                      onRightPress={() => handleShare(selectedLook)}
+                      style={[styles.previewTabBar, { bottom: insets.bottom + 16 }]}
+                    />
                   </View>
-
-                  {(selectedLook.status === 'pending' || selectedLook.status === 'error') && (
-                    <View
-                      style={[
-                        styles.previewStatusBadge,
-                        selectedLook.status === 'error' && styles.previewStatusBadgeError,
-                      ]}
-                    >
-                      <Text style={styles.previewStatusText}>
-                        {selectedLook.status === 'pending'
-                          ? 'Uploading…'
-                          : 'Upload failed — tap save again'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                <LiquidGlassTabBar
-                  activeTab="Design"
-                  onTabPress={(route) => handleNavigateFromPreview(route)}
-                  rightIcon="share-outline"
-                  rightIconColor="#FF1F55"
-                  onRightPress={() => handleShare(selectedLook)}
-                  style={[styles.previewTabBar, { bottom: insets.bottom + 16 }]}
-                />
-              </View>
-            );
-          })()
-          : null}
-      </Modal>
+                );
+              })()
+              : null}
+          </Modal>
+      </View>
     </SafeAreaView>
   );
 }
