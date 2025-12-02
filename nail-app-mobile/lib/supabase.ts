@@ -34,8 +34,8 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 export const supabaseStorage = createClient(SUPABASE_DIRECT_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: KeychainStorage,
-    autoRefreshToken: true,
-    persistSession: true,
+    autoRefreshToken: false,
+    persistSession: false,
     detectSessionInUrl: false,
     storageKey: AUTH_STORAGE_KEY,
   },

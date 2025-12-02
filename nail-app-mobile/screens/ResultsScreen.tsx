@@ -86,15 +86,6 @@ export default function ResultsScreen({ navigation, route }: Props) {
   const selectedColor = useSelectionStore((state) => state.selectedColor);
   const selectedShape = useSelectionStore((state) => state.selectedShape);
   const theme = useThemeColors();
-  const capsulePrimary = selectedColor?.name || 'Colour Title';
-  const capsuleBrand =
-    selectedColor?.brand ||
-    selectedColor?.productLine ||
-    selectedColor?.collection ||
-    'Brand';
-  const capsuleShape = selectedShape?.name || 'Category';
-  const capsuleColorHex = selectedColor?.hex || '#FF1F55';
-
   useEffect(() => {
     if (!imageUri) {
       navigation.replace('MainTabs', { screen: 'Camera' });
@@ -421,31 +412,6 @@ export default function ResultsScreen({ navigation, route }: Props) {
             </NativeLiquidGlass>
           </TouchableOpacity>
 
-          {/* Info capsule - horizontal layout with color/brand/category */}
-          <View style={styles.infoCapsuleWrapper}>
-            <NativeLiquidGlass
-              style={styles.infoCapsule}
-              intensity={60}
-              tint="light"
-              cornerRadius={10}
-              borderWidth={0.8}
-            >
-              <View style={styles.infoCapsuleRow}>
-                <View style={[styles.infoColorDot, { backgroundColor: capsuleColorHex }]} />
-                <View style={styles.infoCapsuleTextRow}>
-                  <Text style={[styles.infoCapsuleTitle, styles.infoCapsulePrimary]} numberOfLines={1}>
-                    {capsulePrimary}
-                  </Text>
-                  <Text style={styles.infoCapsuleMeta} numberOfLines={1}>
-                    {capsuleBrand}
-                  </Text>
-                  <Text style={styles.infoCapsuleMeta} numberOfLines={1}>
-                    {capsuleShape}
-                  </Text>
-                </View>
-              </View>
-            </NativeLiquidGlass>
-          </View>
         </View>
       </SafeAreaView>
 
@@ -549,64 +515,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -1 },
     shadowOpacity: 1,
     shadowRadius: 1,
-  },
-  infoCapsuleWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    paddingLeft: 12,
-  },
-  infoCapsule: {
-    width: 321,
-    maxWidth: '100%',
-    height: 38,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    shadowColor: 'rgba(0,0,0,0.13)',
-    shadowOffset: { width: 0, height: -1 },
-    shadowOpacity: 1,
-    shadowRadius: 9,
-  },
-  infoCapsuleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    columnGap: 12,
-  },
-  infoCapsuleTextRow: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    columnGap: 32,
-  },
-  infoColorDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.6)',
-  },
-  infoCapsuleTitle: {
-    fontFamily: 'System',
-    fontWeight: '600',
-    fontSize: 14,
-    color: 'white',
-    textAlign: 'center',
-    flex: 1,
-  },
-  infoCapsuleMeta: {
-    fontFamily: 'System',
-    fontWeight: '500',
-    fontSize: 12,
-    color: 'white',
-    textAlign: 'center',
-    flex: 1,
-  },
-  infoCapsulePrimary: {
-    fontWeight: '600',
   },
   // Figma spec: Save button - 350x57px centered
   saveSection: {

@@ -337,16 +337,6 @@ export default function CameraScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* Diagnostics overlay for TestFlight (enable with EXPO_PUBLIC_DIAGNOSTICS=1) */}
-      {((globalThis as any)?.process?.env?.EXPO_PUBLIC_DIAGNOSTICS === '1') && (
-        <View style={{ position: 'absolute', top: 8, left: 8, paddingVertical: 6, paddingHorizontal: 8, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 8 }}>
-          <Text style={{ color: '#fff', fontSize: 11 }}>perm: {String(!!permission)} / granted: {String(!!permission?.granted)}</Text>
-          <Text style={{ color: '#fff', fontSize: 11 }}>focused: {String(isFocused)} laidOut: {String(hasLaidOut)}</Text>
-          <Text style={{ color: '#fff', fontSize: 11 }}>canActivate: {String(canActivateCamera)} ready: {String(isCameraReady)}</Text>
-          <Text style={{ color: '#fff', fontSize: 11 }}>retry: {String(cameraRetry)}</Text>
-        </View>
-      )}
-
       {/* Color/Shape Overlay on Camera Preview */}
       {(selectedColor || (selectedShape && selectedShape.id !== 'keep')) && (
         <View style={styles.selectionOverlay} pointerEvents="none">

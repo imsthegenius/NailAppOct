@@ -52,3 +52,4 @@ glassCard: {
 - ✅ Glass effects render consistently without `expo-blur`.
 - ✅ Spacing is uniform (20px).
 
+

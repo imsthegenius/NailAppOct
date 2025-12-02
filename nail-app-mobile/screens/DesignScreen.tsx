@@ -389,7 +389,25 @@ const DesignScreen = () => {
     setProductLine('All');
   };
 
-  const handleColorSelect = (entry: ColorCatalogEntry) => {
+  const handleColorSelect = async (entry: ColorCatalogEntry) => {
+    if (!isPremium && !PAYWALL_DISABLED && !entry.isTrending) {
+      try {
+        const mod: any = await import('react-native-purchases');
+        const Purchases = mod?.default ?? mod;
+        const ENTITLEMENT_ID = process.env.EXPO_PUBLIC_RC_ENTITLEMENT_ID ?? 'premium';
+        const info = await Purchases.getCustomerInfo();
+        const activeMap = info?.entitlements?.active || {};
+        const active = !!(activeMap?.[ENTITLEMENT_ID] ?? Object.values(activeMap)[0]);
+        if (!active) {
+          navigation.getParent()?.navigate('Upgrade');
+          return;
+        }
+      } catch {
+        navigation.getParent()?.navigate('Upgrade');
+        return;
+      }
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setHasTappedColor(true);
     updateSelectedColor(buildSelectedColor(entry));
