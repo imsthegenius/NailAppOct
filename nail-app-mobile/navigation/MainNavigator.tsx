@@ -52,7 +52,14 @@ export default function MainNavigator() {
       {/* Additional Screens */}
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="CompareScreen" component={CompareScreen} />
-      <Stack.Screen name="Upgrade" component={UpgradeScreen} />
+      <Stack.Screen
+        name="Upgrade"
+        component={UpgradeScreen}
+        options={{
+          presentation: 'transparentModal',
+          cardStyle: { backgroundColor: 'transparent' },
+        }}
+      />
       <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
     </Stack.Navigator>
   );

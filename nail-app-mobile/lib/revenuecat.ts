@@ -13,6 +13,10 @@ type PurchasesApi = PurchasesModule extends { default: infer T } ? (T & Purchase
 let configured = false;
 let cachedModule: PurchasesModule | null = null;
 
+export function invalidateRevenueCatConfiguration() {
+  configured = false;
+}
+
 function extractApi(module: PurchasesModule): PurchasesApi {
   const maybe = module as unknown as { default?: PurchasesApi };
   return maybe.default ?? (module as unknown as PurchasesApi);

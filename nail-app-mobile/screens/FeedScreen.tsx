@@ -369,6 +369,29 @@ export default function FeedScreen() {
             locations={[0, 0.5, 1]}
           />
 
+          {/* Header - Always visible */}
+          <View style={styles.header}>
+            <MaskedView
+              maskElement={
+                <Text style={[styles.headerTitle, styles.headerTitleMask]}>Feed</Text>
+              }
+            >
+              <LinearGradient
+                colors={['rgba(255,161,186,1)', 'rgba(231,10,90,1)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Text style={[styles.headerTitle, styles.headerTitleGhost]}>Feed</Text>
+              </LinearGradient>
+            </MaskedView>
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={handleProfilePress}
+            >
+              <Ionicons name="person-circle-outline" size={26} color={theme.text} />
+            </TouchableOpacity>
+          </View>
+
           {/* Content */}
           {savedLooks.length > 0 || loading ? (
             <FlatList
@@ -386,29 +409,6 @@ export default function FeedScreen() {
               removeClippedSubviews
               ListHeaderComponent={
                 <>
-                  {/* Header - Text with gradient fill using MaskedView */}
-                  <View style={styles.header}>
-                    <MaskedView
-                      maskElement={
-                        <Text style={[styles.headerTitle, styles.headerTitleMask]}>Feed</Text>
-                      }
-                    >
-                      <LinearGradient
-                        colors={['rgba(255,161,186,1)', 'rgba(231,10,90,1)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                      >
-                        <Text style={[styles.headerTitle, styles.headerTitleGhost]}>Feed</Text>
-                      </LinearGradient>
-                    </MaskedView>
-                    <TouchableOpacity
-                      style={styles.profileButton}
-                      onPress={handleProfilePress}
-                    >
-                      <Ionicons name="person-circle-outline" size={26} color={theme.text} />
-                    </TouchableOpacity>
-                  </View>
-
                   {/* Category Filters - Reusing Design screen categories */}
                   <View style={styles.categoriesSection}>
                     <Text style={styles.sectionTitle}>Categories</Text>

@@ -8,7 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { supabase } from '../lib/supabase';
-import type { MainStackParamList } from '../navigation/types';
+import type { MainStackParamList, RootStackParamList } from '../navigation/types';
+import { CommonActions } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { useThemeColors } from '../hooks/useColorScheme';
@@ -217,8 +218,15 @@ export default function ProfileScreen() {
               activeOpacity={0.8}
               onPress={async () => {
                 try {
-                  await supabase.auth.signOut();
-                  navigation.navigate('Login');
+                  await supabase.auth.signOut()
+                  // Reset the navigation stack and go to AuthLanding
+                  // This prevents the user from pressing back to return to the app
+                  navigation.dispatch(
+                    CommonActions.reset({
+                      index: 0,
+                      routes: [{ name: 'AuthLanding' }],
+                    })
+                  )
                 } catch { }
               }}
             >
@@ -228,7 +236,15 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.glassButton}
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('Login')}
+              onPress={() => {
+                // Reset to AuthLanding for unauthenticated users too
+                navigation.dispatch(
+                  CommonActions.reset({
+                    index: 0,
+                    routes: [{ name: 'AuthLanding' }],
+                  })
+                )
+              }}
             >
               <Text style={[styles.signInText, { color: theme.text }]}>Sign In</Text>
             </TouchableOpacity>

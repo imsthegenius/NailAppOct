@@ -2,8 +2,8 @@
   "expo": {
     "name": "nail-app-mobile",
     "slug": "nail-app-mobile",
-    "version": "1.0.0",
-    "runtimeVersion": "1.0.0",
+    "version": "1.0.7",
+    "runtimeVersion": "1.0.7",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -23,7 +23,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.nailglow.app",
       "usesAppleSignIn": true,
-      "buildNumber": "5",
+      "buildNumber": "7",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "itms-apps",

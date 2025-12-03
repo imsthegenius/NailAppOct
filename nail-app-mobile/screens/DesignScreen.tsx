@@ -18,7 +18,7 @@ import {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -389,23 +389,11 @@ const DesignScreen = () => {
     setProductLine('All');
   };
 
-  const handleColorSelect = async (entry: ColorCatalogEntry) => {
-    if (!isPremium && !PAYWALL_DISABLED && !entry.isTrending) {
-      try {
-        const mod: any = await import('react-native-purchases');
-        const Purchases = mod?.default ?? mod;
-        const ENTITLEMENT_ID = process.env.EXPO_PUBLIC_RC_ENTITLEMENT_ID ?? 'premium';
-        const info = await Purchases.getCustomerInfo();
-        const activeMap = info?.entitlements?.active || {};
-        const active = !!(activeMap?.[ENTITLEMENT_ID] ?? Object.values(activeMap)[0]);
-        if (!active) {
-          navigation.getParent()?.navigate('Upgrade');
-          return;
-        }
-      } catch {
-        navigation.getParent()?.navigate('Upgrade');
-        return;
-      }
+  const handleColorSelect = (entry: ColorCatalogEntry) => {
+    if (isColorLocked(entry)) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      navigation.dispatch(CommonActions.navigate({ name: 'Upgrade' }));
+      return;
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -417,24 +405,16 @@ const DesignScreen = () => {
     } catch { }
   };
 
-  const handleShapeSelect = async (shape: { id: string; name: string; icon?: string }) => {
-    if (!isPremium && !PAYWALL_DISABLED && shape.id !== 'almond' && shape.id !== 'keep') {
-      // Double-check RevenueCat entitlement in case Supabase sync is lagging
-      try {
-        const mod: any = await import('react-native-purchases');
-        const Purchases = mod?.default ?? mod;
-        const ENTITLEMENT_ID = process.env.EXPO_PUBLIC_RC_ENTITLEMENT_ID ?? 'premium';
-        const info = await Purchases.getCustomerInfo();
-        const activeMap = info?.entitlements?.active || {};
-        const active = !!(activeMap?.[ENTITLEMENT_ID] ?? Object.values(activeMap)[0]);
-        if (!active) {
-          navigation.getParent()?.navigate('Upgrade');
-          return;
-        }
-      } catch {
-        navigation.getParent()?.navigate('Upgrade');
-        return;
-      }
+  const isShapeLocked = useCallback(
+    (shapeId: string) => !PAYWALL_DISABLED && !isPremium && shapeId !== 'almond' && shapeId !== 'keep',
+    [isPremium],
+  );
+
+  const handleShapeSelect = (shape: { id: string; name: string; icon?: string }) => {
+    if (isShapeLocked(shape.id)) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      navigation.dispatch(CommonActions.navigate({ name: 'Upgrade' }));
+      return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const length = computeLengthForShape(shape.id);
@@ -693,9 +673,15 @@ const DesignScreen = () => {
     ]
   );
 
+  const isColorLocked = useCallback(
+    (entry: ColorCatalogEntry) => !PAYWALL_DISABLED && !isPremium && !entry.isTrending,
+    [isPremium],
+  )
+
   const renderColorItem = ({ item, index }: { item: ColorCatalogEntry; index: number }) => {
     const isSelected = selectedColor?.variantId === item.colorVariantId;
     const columnPosition = index % GRID_COLUMNS;
+    const locked = isColorLocked(item)
 
     const cardWidth = Math.max(1, (windowWidth - GRID_SIDE_INSET * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS)
     return (
@@ -704,22 +690,30 @@ const DesignScreen = () => {
           styles.colorItem,
           { width: cardWidth },
           columnPosition !== GRID_COLUMNS - 1 && { marginRight: GRID_GAP },
-          isSelected && styles.colorItemSelected,
+          !locked && isSelected && styles.colorItemSelected,
         ]}
         layout={Layout.springify().damping(18).stiffness(160)}
-        activeOpacity={0.85}
+        activeOpacity={locked ? 0.7 : 0.85}
         onPress={() => handleColorSelect(item)}
         accessibilityRole="button"
-        accessibilityState={{ selected: !!isSelected }}
+        accessibilityLabel={locked ? `${item.shadeName} - Premium feature` : item.shadeName}
+        accessibilityHint={locked ? 'Tap to upgrade' : undefined}
       >
         <View
           style={[
             styles.colorTile,
             { backgroundColor: item.hexCode || '#E5E5E5' },
-            isSelected && styles.colorTileSelected,
+            !locked && isSelected && styles.colorTileSelected,
+            locked && styles.colorTileLocked,
           ]}
-        />
-        {isSelected && hasTappedColor ? (
+        >
+          {locked ? (
+            <View style={styles.lockIconContainer}>
+              <Ionicons name="lock-closed" size={12} color="rgba(0,0,0,0.45)" />
+            </View>
+          ) : null}
+        </View>
+        {!locked && isSelected && hasTappedColor ? (
           <AnimatedRN.View
             style={styles.labelBlock}
             entering={FadeInDown.duration(180)}
@@ -837,24 +831,38 @@ const DesignScreen = () => {
                 >
                   {SHAPES.map((shape) => {
                     const active = selectedShape?.id === shape.id;
-                    const locked = !PAYWALL_DISABLED && !isPremium && shape.id !== 'almond' && shape.id !== 'keep';
+                    const locked = isShapeLocked(shape.id);
                     const label = shape.id === 'keep' ? 'None' : shape.name;
                     return (
                       <TouchableOpacity
                         key={shape.id}
                         onPress={() => handleShapeSelect(shape)}
-                        style={[styles.shapeChip, active && styles.shapeChipActive, locked && styles.shapeChipLocked]}
-                        activeOpacity={0.85}
+                        style={[
+                          styles.shapeChip,
+                          !locked && active && styles.shapeChipActive,
+                          locked && styles.shapeChipLocked,
+                        ]}
+                        activeOpacity={locked ? 1 : 0.85}
+                        accessibilityState={{ selected: !locked && active, disabled: locked }}
+                        accessibilityHint={locked ? 'Premium feature. Tap to upgrade.' : undefined}
                       >
-                        <Text style={[styles.shapeChipText, active && styles.shapeChipTextActive]}>{label}</Text>
-                        {locked && (
+                        {locked ? (
                           <Ionicons
                             name="lock-closed"
-                            size={12}
-                            color="rgba(60,60,67,0.6)"
-                            style={styles.lockIconSmall}
+                            size={10}
+                            color="rgba(60,60,67,0.5)"
+                            style={{ marginRight: 4 }}
                           />
-                        )}
+                        ) : null}
+                        <Text
+                          style={[
+                            styles.shapeChipText,
+                            !locked && active && styles.shapeChipTextActive,
+                            locked && styles.shapeChipTextLocked,
+                          ]}
+                        >
+                          {label}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -1314,6 +1322,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
+  colorTileLocked: {
+    opacity: 0.35,
+  },
+  lockIconContainer: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: 10,
+    padding: 4,
+  },
   labelBlock: {
     // Makes the text feel like it slides out from under the tile
     marginTop: -2,
@@ -1425,6 +1444,9 @@ const styles = StyleSheet.create({
   shapeChipTextActive: {
     color: '#111111',
     fontWeight: '600',
+  },
+  shapeChipTextLocked: {
+    color: 'rgba(60,60,67,0.5)',
   },
   continueButton: {
     marginTop: 14,

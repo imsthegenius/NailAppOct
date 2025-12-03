@@ -13,7 +13,7 @@ import DebugErrorBoundary from './components/DebugErrorBoundary';
 import { GlassToast } from './components/ui/GlassToast';
 import { supabase } from './lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { initRevenueCat } from './lib/revenuecat';
+import { initRevenueCat, getOfferings } from './lib/revenuecat';
 import { PAYWALL_ENABLED } from './lib/paywall';
 import { scheduleWarmOnAppStart } from './lib/savedLooksPrefetch'
 import { SavedLooksProvider } from './src/context/SavedLooksContext';
@@ -125,6 +125,10 @@ export default function App() {
             console.log(`[App.tsx] Initializing RevenueCat for user: ${userId || 'anonymous'}`);
             await initRevenueCat(userId);
             console.log('[App.tsx] RevenueCat initialized.');
+            // Preload offerings in background so paywall is instant
+            getOfferings().then(() => {
+              console.log('[App.tsx] RevenueCat offerings preloaded.');
+            }).catch(() => {});
           } catch (rcError) {
             console.error('[App.tsx] RevenueCat init failed:', rcError);
           }

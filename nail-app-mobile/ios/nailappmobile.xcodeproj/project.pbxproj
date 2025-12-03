@@ -11,6 +11,8 @@
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		53C469090DAF6EAC88782E60 /* libPods-nailappmobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B8C51E60319DE64E7B885796 /* libPods-nailappmobile.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		D7C5766D2EDF4F9700620F24 /* Naild.storekit in Resources */ = {isa = PBXBuildFile; fileRef = D7C5766C2EDF4F9700620F24 /* Naild.storekit */; };
+		D7C5766F2EDF500F00620F24 /* StoreKitTestCertificate.cer in Resources */ = {isa = PBXBuildFile; fileRef = D7C5766E2EDF500F00620F24 /* StoreKitTestCertificate.cer */; };
 		DEB99E52EDDBF8417833657C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 4497F226B7981F05117C8066 /* PrivacyInfo.xcprivacy */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 		F122C704E6E850659953F7F7 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A032E815224486CCC17BA8E /* ExpoModulesProvider.swift */; };
@@ -20,13 +22,15 @@
 		13B07F961A680F5B00A75B9A /* nailappmobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = nailappmobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = nailappmobile/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = nailappmobile/Info.plist; sourceTree = "<group>"; };
-		4497F226B7981F05117C8066 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = nailappmobile/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		4497F226B7981F05117C8066 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = nailappmobile/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		8A032E815224486CCC17BA8E /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-nailappmobile/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = nailappmobile/SplashScreen.storyboard; sourceTree = "<group>"; };
 		B8C51E60319DE64E7B885796 /* libPods-nailappmobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-nailappmobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		BEDD2CAF53FD6A85E4C19A6C /* Pods-nailappmobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-nailappmobile.release.xcconfig"; path = "Target Support Files/Pods-nailappmobile/Pods-nailappmobile.release.xcconfig"; sourceTree = "<group>"; };
 		C9694A48A26F45DFECAC0B47 /* Pods-nailappmobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-nailappmobile.debug.xcconfig"; path = "Target Support Files/Pods-nailappmobile/Pods-nailappmobile.debug.xcconfig"; sourceTree = "<group>"; };
+		D7C5766C2EDF4F9700620F24 /* Naild.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Naild.storekit; sourceTree = "<group>"; };
+		D7C5766E2EDF500F00620F24 /* StoreKitTestCertificate.cer */ = {isa = PBXFileReference; lastKnownFileType = file; path = StoreKitTestCertificate.cer; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = nailappmobile/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* nailappmobile-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "nailappmobile-Bridging-Header.h"; path = "nailappmobile/nailappmobile-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -50,7 +54,6 @@
 				C9694A48A26F45DFECAC0B47 /* Pods-nailappmobile.debug.xcconfig */,
 				BEDD2CAF53FD6A85E4C19A6C /* Pods-nailappmobile.release.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
@@ -64,6 +67,8 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				4497F226B7981F05117C8066 /* PrivacyInfo.xcprivacy */,
+				D7C5766C2EDF4F9700620F24 /* Naild.storekit */,
+				D7C5766E2EDF500F00620F24 /* StoreKitTestCertificate.cer */,
 			);
 			name = nailappmobile;
 			sourceTree = "<group>";
@@ -197,6 +202,8 @@
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
 				DEB99E52EDDBF8417833657C /* PrivacyInfo.xcprivacy in Resources */,
+				D7C5766D2EDF4F9700620F24 /* Naild.storekit in Resources */,
+				D7C5766F2EDF500F00620F24 /* StoreKitTestCertificate.cer in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
