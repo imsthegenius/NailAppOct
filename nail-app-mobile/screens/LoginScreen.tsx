@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
+  TextInput as RNTextInput,
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
@@ -28,6 +29,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { isAppleSignInAvailable, signInWithApple } from '../lib/appleSignIn';
+
+// Auth color palette for better contrast on pink gradient backgrounds
+const AUTH_COLORS = {
+  title: '#E70A5A',           // Magenta - high contrast on pink
+  subtitle: '#555555',        // Darker gray for better readability
+  label: '#444444',           // Dark gray labels - clear on pink
+  inputText: '#333333',       // Dark gray for readability
+  inputPlaceholder: '#999999', // Medium gray placeholder - more visible
+  footerText: '#555555',      // Darker gray for footer
+  link: '#E70A5A',            // Magenta for links
+};
+
 const CARD_BACKGROUND = 'rgba(255, 255, 255, 0.18)';
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
@@ -43,6 +56,16 @@ export default function LoginScreen({ navigation }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  // Refs for keyboard flow
+  const emailRef = useRef<RNTextInput>(null);
+  const passwordRef = useRef<RNTextInput>(null);
+
+  // Haptic feedback on button press-in for snappier feel
+  const handlePressIn = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
   useEffect(() => {
     isAppleSignInAvailable()
@@ -281,14 +304,20 @@ export default function LoginScreen({ navigation }: Props) {
             <View style={styles.formSection}>
               <Text style={styles.label}>Email</Text>
               <TextInput
-                style={styles.input}
+                ref={emailRef}
+                style={[styles.input, focusedField === 'email' && styles.inputFocused]}
                 placeholder="you@email.com"
-                placeholderTextColor="rgba(255,255,255,0.4)"
+                placeholderTextColor={AUTH_COLORS.inputPlaceholder}
                 value={email}
                 onChangeText={setEmail}
+                onFocus={() => setFocusedField('email')}
+                onBlur={() => setFocusedField(null)}
                 autoCapitalize="none"
+                autoFocus={true}
                 keyboardType="email-address"
                 returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => passwordRef.current?.focus()}
               />
             </View>
 
@@ -308,14 +337,18 @@ export default function LoginScreen({ navigation }: Props) {
               </View>
               <View style={styles.passwordRow}>
                 <TextInput
-                  style={[styles.input, styles.passwordInput]}
+                  ref={passwordRef}
+                  style={[styles.input, styles.passwordInput, focusedField === 'password' && styles.inputFocused]}
                   placeholder="Your password"
-                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  placeholderTextColor={AUTH_COLORS.inputPlaceholder}
                   value={password}
                   onChangeText={setPassword}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField(null)}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   returnKeyType="done"
+                  onSubmitEditing={handleLogin}
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
@@ -334,8 +367,9 @@ export default function LoginScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[styles.primaryButton, loading && styles.disabledButton]}
               onPress={handleLogin}
+              onPressIn={handlePressIn}
               disabled={loading}
-              activeOpacity={0.92}
+              activeOpacity={0.75}
               accessibilityRole="button"
               accessibilityLabel="Log in"
               accessibilityHint="Submits your email and password to sign in to NailGlow."
@@ -351,8 +385,9 @@ export default function LoginScreen({ navigation }: Props) {
           <View style={styles.footer}>
             <Text style={styles.footerText}>Need an account?</Text>
             <TouchableOpacity
-              onPress={() => navigation.replace('Signup')}
-              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Signup')}
+              onPressIn={handlePressIn}
+              activeOpacity={0.75}
               accessibilityRole="button"
               accessibilityLabel="Create account"
               accessibilityHint="Opens the sign-up form so you can create your NailGlow account."
@@ -435,13 +470,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 34,
     fontWeight: '800',
-    color: '#fff',
+    color: AUTH_COLORS.title,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     lineHeight: 22,
-    color: 'rgba(255,255,255,0.85)',
+    color: AUTH_COLORS.subtitle,
     marginBottom: 28,
   },
   card: {
@@ -462,8 +497,8 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.9)',
-    marginBottom: 8,
+    color: AUTH_COLORS.label,
+    marginBottom: 10,
   },
   passwordLabelRow: {
     flexDirection: 'row',
@@ -472,20 +507,24 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   link: {
-    color: 'rgba(255,255,255,0.95)',
+    color: AUTH_COLORS.link,
     fontSize: 14,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
   input: {
-    height: 52,
-    borderRadius: 14,
+    height: 56,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.28)',
     paddingHorizontal: 16,
-    color: '#fff',
+    color: AUTH_COLORS.inputText,
     fontSize: 16,
     backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  inputFocused: {
+    borderColor: 'rgba(142, 142, 147, 0.6)',
+    borderWidth: 1.5,
   },
   passwordRow: {
     flexDirection: 'row',
@@ -525,12 +564,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    color: 'rgba(255,255,255,0.85)',
+    color: AUTH_COLORS.footerText,
     fontSize: 15,
     marginRight: 6,
   },
   footerLink: {
-    color: '#fff',
+    color: AUTH_COLORS.link,
     fontSize: 15,
     fontWeight: '600',
     textDecorationLine: 'underline',

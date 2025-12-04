@@ -25,6 +25,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { screenGradients } from '../theme/gradients';
 
+// Auth color palette for better contrast on pink gradient backgrounds
+const AUTH_COLORS = {
+  title: '#E70A5A',           // Magenta - high contrast on pink
+  subtitle: '#8e8e93',        // iOS system gray
+  link: '#E70A5A',            // Magenta for links
+};
+
 const CARD_BACKGROUND = 'rgba(255, 255, 255, 0.2)';
 
 type LegalAcceptanceNavigationProp = StackNavigationProp<RootStackParamList, 'LegalAcceptance'>;
@@ -103,6 +110,11 @@ export default function LegalAcceptanceScreen({ navigation, route }: Props) {
   };
 
   const readyToContinue = privacyChecked && termsChecked;
+
+  // Haptic feedback on button press-in for snappier feel
+  const handlePressIn = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -205,7 +217,8 @@ export default function LegalAcceptanceScreen({ navigation, route }: Props) {
           style={[styles.primaryButton, (!readyToContinue || loading) && styles.disabledButton]}
           disabled={!readyToContinue || loading}
           onPress={handleAccept}
-          activeOpacity={0.9}
+          onPressIn={handlePressIn}
+          activeOpacity={0.75}
           accessibilityRole="button"
           accessibilityLabel="Agree and continue"
           accessibilityHint="Confirms the privacy policy and terms so you can start using NailGlow."
@@ -233,12 +246,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#FF86A8',
+    color: AUTH_COLORS.title,
   },
   headerSubtitle: {
     marginTop: 8,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.85)',
+    color: AUTH_COLORS.subtitle,
     lineHeight: 22,
   },
   scrollContent: {
@@ -321,7 +334,7 @@ const styles = StyleSheet.create({
   link: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: AUTH_COLORS.link,
     textDecorationLine: 'underline',
   },
   error: {

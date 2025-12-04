@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,11 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Haptic feedback on button press-in for snappier feel
+  const handlePressIn = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
   const handleOpenMail = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -108,15 +113,16 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
             back and log in.
           </Text>
 
-          <TouchableOpacity style={styles.primaryButton} onPress={handleOpenMail} activeOpacity={0.9}>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleOpenMail} onPressIn={handlePressIn} activeOpacity={0.75}>
             <Text style={styles.primaryButtonText}>Open email app</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.secondaryButton, sending && styles.disabledButton]}
             onPress={handleResend}
+            onPressIn={handlePressIn}
             disabled={sending}
-            activeOpacity={0.9}
+            activeOpacity={0.75}
           >
             {sending ? (
               <ActivityIndicator color="#E70A5A" />
@@ -132,14 +138,16 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={styles.footerActionButton}
               onPress={handleGoToLogin}
-              activeOpacity={0.8}
+              onPressIn={handlePressIn}
+              activeOpacity={0.75}
             >
               <Text style={styles.footerLink}>Already verified? Log in</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.footerActionButton}
               onPress={handleChangeEmail}
-              activeOpacity={0.8}
+              onPressIn={handlePressIn}
+              activeOpacity={0.75}
             >
               <Text style={styles.footerLink}>Use a different email</Text>
             </TouchableOpacity>

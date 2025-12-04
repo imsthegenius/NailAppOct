@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Image, StyleSheet, Dimensions } from 'react-native';
+import { View, Image, StyleSheet, Dimensions, Animated, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../lib/supabase';
 import { resolvePostAuthDestination } from '../lib/onboardingFlow';
@@ -10,6 +11,9 @@ type NextRoute = 'Main' | 'Onboarding' | 'LegalAcceptance';
 
 export default function SplashScreen({ navigation }: any) {
   const nextRouteRef = useRef<NextRoute>('Main');
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const insets = useSafeAreaInsets();
 
   const determineNextRoute = async () => {
     try {
@@ -32,12 +36,29 @@ export default function SplashScreen({ navigation }: any) {
   };
 
   useEffect(() => {
+    // Start fade-in animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
     let isMounted = true;
     (async () => {
       await determineNextRoute();
       if (!isMounted) {
         return;
       }
+      // Small delay to show splash animation
+      await new Promise(resolve => setTimeout(resolve, 800));
       const nextRoute = nextRouteRef.current;
       if (nextRoute === 'Main') {
         navigation.replace('Main');
@@ -51,29 +72,38 @@ export default function SplashScreen({ navigation }: any) {
     return () => {
       isMounted = false;
     };
-  }, [navigation]);
+  }, [navigation, fadeAnim, scaleAnim]);
 
   return (
     <View style={styles.container}>
-      {/* Screen 1: Vector 50 shape from bottom */}
-      {/* Screen 2: Gradient + Logo overlay */}
-      <View style={styles.gradientWrap}>
-        <LinearGradient
-          colors={["rgba(225,29,72,0.40)", "rgba(253,164,175,0.10)"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.backgroundGradient}
-        />
-      </View>
+      {/* Premium gradient background */}
+      <LinearGradient
+        colors={['#F7AFC3', '#FFEFF3', '#FFF5F7']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
 
-      <View
-        style={styles.logoContainer}
+      {/* Centered logo with animation */}
+      <Animated.View
+        style={[
+          styles.logoContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
       >
         <Image
           source={require('../assets/images/NailGlowLogo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
+      </Animated.View>
+
+      {/* Subtle bottom accent */}
+      <View style={[styles.bottomAccent, { paddingBottom: insets.bottom + 20 }]}>
+        <View style={styles.accentLine} />
       </View>
     </View>
   );
@@ -81,44 +111,36 @@ export default function SplashScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: {
-    width: width,
-    height: height,
-    backgroundColor: '#f5f5f4',
-    position: 'relative',
-  },
-  // Screen 1 (from your Vector 50 spec)
-  vector50: {
-    position: 'absolute',
-    width: width * 1.28, // ~565/440
-    height: height * 0.39, // ~375/956
-    bottom: 0,
-    left: width * -0.12, // ~-52/440
-    backgroundColor: '#ffa1ba',
-    borderWidth: 1,
-    borderColor: '#e70a5a',
-    borderTopLeftRadius: 36,
-    borderTopRightRadius: 36,
-  },
-  // Screen 2 background gradient
-  gradientWrap: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  backgroundGradient: {
-    position: 'absolute',
-    width: width * 1.5,
-    height: height * 1.5,
-    top: -height * 0.25,
-    left: -width * 0.25,
+    flex: 1,
+    backgroundColor: '#FFF5F7',
   },
   logoContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logo: {
+    width: width * 0.55,
+    height: 80,
+  },
+  tagline: {
+    marginTop: 16,
+    fontSize: 17,
+    fontWeight: '500',
+    color: '#E70A5A',
+    letterSpacing: 0.5,
+  },
+  bottomAccent: {
     position: 'absolute',
-    top: height * 0.42,
+    bottom: 0,
     left: 0,
     right: 0,
     alignItems: 'center',
   },
-  logo: {
-    width: width * 0.6,
-    height: height * 0.12,
+  accentLine: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(231, 10, 90, 0.3)',
   },
 });

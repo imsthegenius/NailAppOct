@@ -334,11 +334,11 @@ export default function App() {
               {__DEV__ ? (
                 <Stack.Screen name="ConnectionTest" component={ConnectionTestScreen} />
               ) : null}
-              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-              <Stack.Screen name="AuthLanding" component={AuthLandingScreen} />
-              <Stack.Screen name="Main" component={MainNavigator} />
-              <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen name="Signup" component={SignupScreen} />
+              <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ gestureEnabled: false }} />
+              <Stack.Screen name="AuthLanding" component={AuthLandingScreen} options={{ gestureEnabled: false }} />
+              <Stack.Screen name="Main" component={MainNavigator} options={{ gestureEnabled: false }} />
+              <Stack.Screen name="Login" component={LoginScreen} options={{ gestureEnabled: true }} />
+              <Stack.Screen name="Signup" component={SignupScreen} options={{ gestureEnabled: true }} />
               <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
               <Stack.Screen name="LegalAcceptance" component={LegalAcceptanceScreen} />
               <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
