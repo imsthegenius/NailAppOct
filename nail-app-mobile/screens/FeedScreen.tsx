@@ -284,7 +284,8 @@ export default function FeedScreen() {
   const renderLookItem = ({ item, index }: { item: SavedLook; index: number }) => {
     const imageUri = selectLookImageUri(item);
     const loaded = loadedImageIds[item.id] === true;
-    if (index < 2) {
+    // Debug logging - only in development
+    if (__DEV__ && index < 2) {
       console.log('Feed imageUri', { id: item.id, imageUri: (imageUri || '').slice(0, 120) })
     }
 

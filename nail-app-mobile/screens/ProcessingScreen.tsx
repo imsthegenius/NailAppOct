@@ -236,17 +236,17 @@ export default function ProcessingScreen({ navigation, route }: Props) {
       useNativeDriver: true,
     }).start();
 
-    // Scanner line animation (continuous up and down)
+    // Scanner line animation (continuous up and down) - slower for premium feel
     Animated.loop(
       Animated.sequence([
         Animated.timing(scannerAnim, {
           toValue: 1,
-          duration: 2000,
+          duration: 2800,
           useNativeDriver: true,
         }),
         Animated.timing(scannerAnim, {
           toValue: 0,
-          duration: 2000,
+          duration: 2800,
           useNativeDriver: true,
         }),
       ])
