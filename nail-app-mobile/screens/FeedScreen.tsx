@@ -13,6 +13,7 @@ import {
   BackHandler,
   Share,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -407,6 +408,14 @@ export default function FeedScreen() {
               maxToRenderPerBatch={12}
               updateCellsBatchingPeriod={32}
               removeClippedSubviews
+              refreshControl={
+                <RefreshControl
+                  refreshing={loading}
+                  onRefresh={refresh}
+                  tintColor="#E70A5A"
+                  colors={['#E70A5A']}
+                />
+              }
               ListHeaderComponent={
                 <>
                   {/* Category Filters - Reusing Design screen categories */}

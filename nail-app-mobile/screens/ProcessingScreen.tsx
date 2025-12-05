@@ -81,10 +81,13 @@ export default function ProcessingScreen({ navigation, route }: Props) {
         // Import the Gemini transformation functions
         const { transformNailsWithGemini, mockTransformNails, detectMimeType, isGeminiConfigured } = await import('../lib/geminiService');
         
-        // Start progress simulation
+        // Start progress simulation with exponential decay for smoother feel
         const progressInterval = setInterval(() => {
           setProgress(prev => {
-            const newProgress = Math.min(prev + Math.random() * 15 + 5, 95);
+            // Exponential decay: slows down as it approaches 95%
+            const remaining = 95 - prev
+            const increment = Math.max(remaining * 0.08, 0.5)
+            const newProgress = Math.min(prev + increment, 95)
             
             // Update message based on progress
             if (selectedColor && selectedShape) {
@@ -97,7 +100,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
             
             return newProgress;
           });
-        }, 200);
+        }, 350);
         
         if (!resolvedBase64 && imageUri) {
           try {
@@ -229,7 +232,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
     // Fade in
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 800,
+      duration: 400,
       useNativeDriver: true,
     }).start();
 
@@ -279,13 +282,13 @@ export default function ProcessingScreen({ navigation, route }: Props) {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 1000,
+          toValue: 1.08,
+          duration: 700,
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 1000,
+          duration: 700,
           useNativeDriver: true,
         }),
       ])
@@ -347,7 +350,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
               {
                 translateY: scannerAnim.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [-100, height - 200],
+                  outputRange: [-100, height + 100],
                 }),
               },
             ],

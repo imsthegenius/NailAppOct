@@ -1,12 +1,26 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Image,
+  Dimensions,
+} from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { StatusBar } from 'expo-status-bar'
 import * as AppleAuthentication from 'expo-apple-authentication'
-import { screenGradients } from '../theme/gradients'
 import { isAppleSignInAvailable, signInWithApple } from '../lib/appleSignIn'
+
+const { width, height } = Dimensions.get('window')
+
+// Figma colors - matching onboarding gradient
+const GRADIENT_START = '#FFFFFF'
+const GRADIENT_MID = '#FFFFFF'
+const GRADIENT_END = '#F9A8D4' // Pink (rose-300)
 
 // Auth color palette for better contrast on pink gradient backgrounds
 const AUTH_COLORS = {
@@ -42,8 +56,23 @@ export default function AuthLandingScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1 }}>
-      <StatusBar style="light" />
-      <LinearGradient colors={screenGradients.auth} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={StyleSheet.absoluteFill} />
+      <StatusBar style="dark" />
+      <LinearGradient
+        colors={[GRADIENT_START, GRADIENT_MID, GRADIENT_END]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Hero image - positioned to overflow top and sides */}
+      <View style={styles.heroContainer}>
+        <Image
+          source={require('../assets/images/onboarding/Slide3-image.png')}
+          style={styles.heroImage}
+          resizeMode="cover"
+        />
+      </View>
+
       <SafeAreaView style={styles.container}>
         <View style={styles.spacer} />
 
@@ -106,6 +135,20 @@ export default function AuthLandingScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
+  heroContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.55,
+    overflow: 'hidden',
+  },
+  heroImage: {
+    width: width * 1.2,
+    height: '100%',
+    marginLeft: -width * 0.1,
+    marginTop: -height * 0.05,
+  },
   container: { flex: 1, paddingHorizontal: 24, paddingBottom: 20 },
   spacer: { flex: 1 },
   footer: { paddingBottom: 12 },

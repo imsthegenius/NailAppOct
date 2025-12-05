@@ -3,13 +3,44 @@
 **Date:** 2025-12-03  
 **Status:** Planning  
 **Estimated Total Effort:** 8-12 hours  
-**Last Updated:** 2025-12-03
+**Last Updated:** 2025-12-04 (Re-audited for snappiness)
 
 ---
 
 ## Executive Summary
 
-This plan addresses UX polish items to make the app feel "super modern, smooth, and well put together" without any redesigns. Focus is on animations, loading states, haptic feedback, and micro-interactions.
+This plan addresses UX polish items to make the app feel "super modern, smooth, and well put together" without any redesigns. Focus is on:
+
+1. **🚀 Snappiness** - Faster animation timing, tighter spring tensions, reduced delays
+2. **📳 Haptic Feedback** - Consistent tactile response across all interactions
+3. **🔧 Bug Fixes** - Scanner range, progress curve timing
+
+### ✅ APPROVED Changes (Timing/Haptics Only)
+| Change | Impact | File |
+|--------|--------|------|
+| DesignScreen spring tension 40→65 | High | `DesignScreen.tsx` |
+| SplashScreen delay 800→500ms | High | `SplashScreen.tsx` |
+| ProcessingScreen fade 800→400ms | Medium | `ProcessingScreen.tsx` |
+| ProcessingScreen pulse 1000→700ms | Medium | `ProcessingScreen.tsx` |
+| Scanner line range fix | Medium | `ProcessingScreen.tsx` |
+| Progress exponential decay | Medium | `ProcessingScreen.tsx` |
+| Onboarding swipe haptic | Low | `OnboardingScreen.tsx` |
+| Pull-to-refresh in Feed | Low | `FeedScreen.tsx` |
+| GlassToast duration 1500→2000ms | Low | `GlassToast.tsx` |
+
+### ❌ SKIPPED Changes (Design Changes)
+| Item | Reason |
+|------|--------|
+| SkeletonShimmer component | New visual component |
+| Skeleton grid in DesignScreen | Requires new component |
+| GlassToast → NativeLiquidGlass | Glass element change |
+| Camera capture flash effect | New visual effect |
+| Animate active dot (scale 1.3) | Design change |
+| Gradient continue button | Design/color change |
+| ResultsScreen entrance animation | New animation code |
+| SplashScreen exit fade | New animation wrapper |
+| Shape sheet slide-up animation | New animation code |
+| lib/haptics.ts utility | New file, refactor needed |
 
 ---
 
@@ -24,16 +55,13 @@ This plan addresses UX polish items to make the app feel "super modern, smooth, 
 - Gesture handlers for tab swiping
 - `cardStyleInterpolator` configurations
 
-### SAFE TO MODIFY
-- `ProcessingScreen.tsx` - Animation timing only
-- `ResultsScreen.tsx` - Entrance animations, button feedback
-- `SplashScreen.tsx` - Exit animation only
-- `FeedScreen.tsx` - Loading states, pull-to-refresh (NOT navigation)
-- `DesignScreen.tsx` - Loading skeletons, shape sheet animation (NOT navigation)
-- `CameraScreen.tsx` - Capture flash, zoom chip styling (NOT navigation)
-- `OnboardingScreen.tsx` - Haptics, dot animations
-- `components/ui/GlassToast.tsx` - Blur effect, timing
-- `lib/haptics.ts` - New utility file
+### SAFE TO MODIFY (Timing Only)
+- `ProcessingScreen.tsx` - Animation timing, scanner range, progress curve
+- `SplashScreen.tsx` - Delay timing only (800→500ms)
+- `FeedScreen.tsx` - Pull-to-refresh only (NOT navigation)
+- `DesignScreen.tsx` - Spring tension only (NOT navigation)
+- `OnboardingScreen.tsx` - Swipe haptic only
+- `components/ui/GlassToast.tsx` - Duration only (1500→2000ms)
 
 ### Navigation Rules
 - Never modify `navigation.jumpTo()` behavior
@@ -136,8 +164,12 @@ animateSparkle(sparkle4Anim, 2100);
 
 ---
 
-## Phase 2: Loading States & Shimmer Components (2 hours)
-*Eliminates flicker and improves perceived performance*
+## Phase 2: Loading States & Shimmer Components ~~(2 hours)~~ ❌ SKIPPED
+*~~Eliminates flicker and improves perceived performance~~*
+
+> **SKIPPED:** This phase involves creating new visual components (SkeletonShimmer) which is a design change, not a timing improvement. Only **2.2 Pull-to-Refresh** is approved.
+
+### ✅ APPROVED: 2.2 Pull-to-Refresh Only
 
 ### New File: `components/ui/SkeletonShimmer.tsx`
 
@@ -305,43 +337,15 @@ skeletonGrid: {
 
 ---
 
-## Phase 3: Haptic Feedback Standardization (1 hour)
+## Phase 3: Haptic Feedback Standardization ~~(1 hour)~~ ✅ PARTIAL
 *Consistent tactile feedback across the app*
 
-### New File: `lib/haptics.ts`
+> **PARTIAL:** Skip creating `lib/haptics.ts` utility file. Only implement **3.1 Onboarding Swipe Haptic** directly.
 
-```tsx
-import * as Haptics from 'expo-haptics';
+### ❌ SKIPPED: New File `lib/haptics.ts`
+*(Creating new utility files is out of scope)*
 
-/**
- * Standardized haptic feedback patterns for the app.
- * Use these instead of calling Haptics directly for consistency.
- */
-export const haptic = {
-  /** Light tap - navigation, selection, toggles */
-  light: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-  
-  /** Medium tap - primary actions, capture, confirm */
-  medium: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
-  
-  /** Heavy tap - destructive actions, errors */
-  heavy: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
-  
-  /** Selection change - scrolling stops, picker changes */
-  selection: () => Haptics.selectionAsync(),
-  
-  /** Success - save complete, action succeeded */
-  success: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
-  
-  /** Warning - locked feature, validation error */
-  warning: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
-  
-  /** Error - action failed, network error */
-  error: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
-};
-```
-
-### File: `screens/OnboardingScreen.tsx`
+### ✅ APPROVED: File `screens/OnboardingScreen.tsx`
 
 #### 3.1 Add Haptic on Page Swipe
 ```tsx
@@ -392,12 +396,14 @@ const onViewableItemsChanged = useRef(
 
 ---
 
-## Phase 4: Screen Transitions & Entrance Animations (2 hours)
-*Premium feel on screen changes*
+## Phase 4: Screen Transitions & Entrance Animations ~~(2 hours)~~ ❌ SKIPPED
+*~~Premium feel on screen changes~~*
 
-### File: `screens/ResultsScreen.tsx`
+> **SKIPPED:** All items in this phase involve adding new animation code/wrappers which are design changes, not timing tweaks.
 
-#### 4.1 Add Entrance Animation for Result Image
+### ❌ SKIPPED: File `screens/ResultsScreen.tsx`
+
+#### ~~4.1 Add Entrance Animation for Result Image~~
 ```tsx
 // Add refs at top of component:
 const imageScale = useRef(new Animated.Value(0.95)).current;
@@ -515,42 +521,26 @@ useEffect(() => {
 
 ---
 
-## Phase 5: Component Polish (1.5 hours)
-*Consistency with iOS26 design language*
+## Phase 5: Component Polish ~~(1.5 hours)~~ ✅ PARTIAL
+*~~Consistency with iOS26 design language~~*
 
-### File: `components/ui/GlassToast.tsx`
+> **PARTIAL:** Only the duration change is approved. Skip glass element swap and camera flash.
 
-#### 5.1 Add NativeLiquidGlass and Increase Duration
+### ✅ APPROVED: File `components/ui/GlassToast.tsx` (Duration Only)
+
+#### 5.1 Increase Duration Only
 ```tsx
-// Add import:
-import { NativeLiquidGlass } from './NativeLiquidGlass';
-
 // Change default duration:
 duration = 2000, // was 1500
-
-// Replace glassBox View:
-// Current:
-<View style={styles.glassBox}>
-  <Ionicons name={icon} size={48} color="white" />
-  {message && <Text style={styles.message}>{message}</Text>}
-</View>
-
-// Change to:
-<NativeLiquidGlass
-  style={styles.glassBox}
-  intensity={60}
-  tint="light"
-  cornerRadius={24}
-  borderWidth={0.5}
->
-  <Ionicons name={icon} size={48} color="white" />
-  {message && <Text style={styles.message}>{message}</Text>}
-</NativeLiquidGlass>
 ```
 
-### File: `screens/CameraScreen.tsx`
+### ❌ SKIPPED: NativeLiquidGlass swap
+*(Glass element change - out of scope)*
 
-#### 5.2 Add Capture Flash Effect
+### ❌ SKIPPED: File `screens/CameraScreen.tsx`
+
+#### ~~5.2 Add Capture Flash Effect~~
+*(New visual effect - out of scope)*
 ```tsx
 // Add state and ref:
 const [showFlash, setShowFlash] = useState(false);
@@ -613,32 +603,20 @@ const takePicture = async () => {
 
 ---
 
-## Phase 6: Minor Polish Items (1 hour)
-*Quick wins*
+## Phase 6: Minor Polish Items ~~(1 hour)~~ ❌ SKIPPED
+*~~Quick wins~~*
 
-### File: `screens/OnboardingScreen.tsx`
+> **SKIPPED:** All items in this phase are design changes (dot scaling, gradient button), not timing improvements.
 
-#### 6.1 Animate Active Dot
-```tsx
-// Replace static dot with animated:
-{SLIDES.map((slide, index) => {
-  const isActive = index === currentIndex;
-  return (
-    <Animated.View
-      key={slide.id}
-      style={[
-        styles.dot,
-        isActive ? styles.dotActive : styles.dotInactive,
-        isActive && { transform: [{ scale: 1.3 }] },
-      ]}
-    />
-  );
-})}
-```
+### ❌ SKIPPED: File `screens/OnboardingScreen.tsx`
 
-### File: `screens/DesignScreen.tsx`
+#### ~~6.1 Animate Active Dot~~
+*(Design change - dot size modification)*
 
-#### 6.2 Add Gradient to Continue Button
+### ❌ SKIPPED: File `screens/DesignScreen.tsx`
+
+#### ~~6.2 Add Gradient to Continue Button~~
+*(Design change - color/gradient modification)*
 ```tsx
 // Location: continueButton in shape sheet
 // Current:
@@ -685,30 +663,36 @@ continueButton: {
 
 ---
 
-## Implementation Order
+## Implementation Order (APPROVED ONLY)
 
-| Priority | Phase | Time | Files Modified |
-|----------|-------|------|----------------|
-| 1 | Phase 1: ProcessingScreen | 1.5h | `ProcessingScreen.tsx` |
-| 2 | Phase 3: Haptics | 1h | `lib/haptics.ts`, `OnboardingScreen.tsx` |
-| 3 | Phase 5.2: Camera Flash | 30m | `CameraScreen.tsx` |
-| 4 | Phase 2: Shimmer | 2h | `SkeletonShimmer.tsx`, `FeedScreen.tsx`, `DesignScreen.tsx` |
-| 5 | Phase 4: Transitions | 2h | `ResultsScreen.tsx`, `SplashScreen.tsx`, `DesignScreen.tsx` |
-| 6 | Phase 5.1: GlassToast | 30m | `GlassToast.tsx` |
-| 7 | Phase 6: Minor Polish | 1h | `OnboardingScreen.tsx`, `DesignScreen.tsx` |
+| Priority | Item | Time | File |
+|----------|------|------|------|
+| 🔴 1 | DesignScreen spring tension 40→65 | 5 min | `DesignScreen.tsx` |
+| 🔴 2 | SplashScreen delay 800→500ms | 2 min | `SplashScreen.tsx` |
+| 🔴 3 | ProcessingScreen fade 800→400ms | 2 min | `ProcessingScreen.tsx` |
+| 🔴 4 | ProcessingScreen pulse 1000→700ms | 2 min | `ProcessingScreen.tsx` |
+| 🟡 5 | Scanner line range fix | 5 min | `ProcessingScreen.tsx` |
+| 🟡 6 | Progress exponential decay | 10 min | `ProcessingScreen.tsx` |
+| 🟡 7 | Onboarding swipe haptic | 5 min | `OnboardingScreen.tsx` |
+| 🟢 8 | Pull-to-refresh in Feed | 10 min | `FeedScreen.tsx` |
+| 🟢 9 | GlassToast duration 1500→2000ms | 2 min | `GlassToast.tsx` |
+
+**Total estimated time: ~45 minutes**
 
 ---
 
 ## Commit Strategy
 
 ```
-fix(mobile): improve ProcessingScreen progress animation timing
-feat(mobile): add haptics utility and onboarding swipe feedback
-feat(mobile): add capture flash effect to CameraScreen
-feat(mobile): add SkeletonShimmer component for loading states
-feat(mobile): add entrance animations to Results and Design screens
-fix(mobile): add blur effect to GlassToast component
-chore(mobile): minor UX polish - dots, gradients, pull-to-refresh
+fix(mobile): improve animation timing for snappier feel
+
+- DesignScreen: spring tension 40→65, fade 350→200ms
+- SplashScreen: delay 800→500ms
+- ProcessingScreen: fade 800→400ms, pulse 1000→700ms
+- ProcessingScreen: fix scanner range, exponential progress decay
+- OnboardingScreen: add swipe haptic
+- FeedScreen: add pull-to-refresh
+- GlassToast: duration 1500→2000ms
 ```
 
 ---
@@ -730,11 +714,17 @@ chore(mobile): minor UX polish - dots, gradients, pull-to-refresh
 - [ ] Test main tab navigation still works
 - [ ] Test swipe gestures still work
 
-### Final Verification
+### Final Verification (Approved Changes Only)
 - [ ] Full user flow: Splash → Onboarding → Auth → Camera → Design → Processing → Results → Feed
-- [ ] All haptics fire correctly
-- [ ] All animations smooth at 60fps
-- [ ] No flicker or jarring transitions
+- [ ] DesignScreen feels snappier on tab switch (spring tension)
+- [ ] SplashScreen transitions faster (500ms delay)
+- [ ] ProcessingScreen fade-in is quicker (400ms)
+- [ ] ProcessingScreen pulse feels more alive (700ms cycle)
+- [ ] Scanner line reaches bottom of screen
+- [ ] Progress bar takes ~10-12 seconds to reach 95%
+- [ ] Onboarding swipe triggers haptic feedback
+- [ ] FeedScreen pull-to-refresh works
+- [ ] GlassToast displays for 2 seconds
 - [ ] Tab navigation: Design ↔ Camera ↔ Feed works perfectly
 - [ ] Physical device test (iOS)
 - [ ] Physical device test (Android)

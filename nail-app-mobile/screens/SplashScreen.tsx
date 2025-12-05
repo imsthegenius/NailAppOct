@@ -58,7 +58,7 @@ export default function SplashScreen({ navigation }: any) {
         return;
       }
       // Small delay to show splash animation
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 500));
       const nextRoute = nextRouteRef.current;
       if (nextRoute === 'Main') {
         navigation.replace('Main');

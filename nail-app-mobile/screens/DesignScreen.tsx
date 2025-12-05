@@ -347,13 +347,13 @@ const DesignScreen = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 350,
+        duration: 200,
         useNativeDriver: true,
       }),
       Animated.spring(slideAnim, {
         toValue: 0,
-        friction: 8,
-        tension: 40,
+        friction: 7,
+        tension: 65,
         useNativeDriver: true,
       }),
     ]).start();

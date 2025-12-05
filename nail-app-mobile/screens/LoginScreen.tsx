@@ -41,7 +41,7 @@ const AUTH_COLORS = {
   link: '#E70A5A',            // Magenta for links
 };
 
-const CARD_BACKGROUND = 'rgba(255, 255, 255, 0.18)';
+const CARD_BACKGROUND = 'rgba(255, 255, 255, 0.25)';
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -358,7 +358,7 @@ export default function LoginScreen({ navigation }: Props) {
                   <Ionicons
                     name={showPassword ? 'eye-off' : 'eye'}
                     size={20}
-                    color="rgba(255,255,255,0.7)"
+                    color="#666666"
                   />
                 </TouchableOpacity>
               </View>
@@ -516,14 +516,14 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
+    borderColor: 'rgba(231, 10, 90, 0.15)',
     paddingHorizontal: 16,
     color: AUTH_COLORS.inputText,
     fontSize: 16,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
   },
   inputFocused: {
-    borderColor: 'rgba(142, 142, 147, 0.6)',
+    borderColor: '#E70A5A',
     borderWidth: 1.5,
   },
   passwordRow: {

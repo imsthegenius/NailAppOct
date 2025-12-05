@@ -23,7 +23,7 @@ export const GlassToast: React.FC<GlassToastProps> = ({
   visible,
   icon = 'checkmark-circle',
   message,
-  duration = 1500,
+  duration = 2000,
   onHide,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
