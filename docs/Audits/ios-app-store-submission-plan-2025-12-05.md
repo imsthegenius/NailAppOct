@@ -480,6 +480,142 @@ These files/patterns are critical and must not be changed:
 
 ---
 
+## Phase 6: Code Quality Cleanup (30 min) ✅ COMPLETE
+*Gate all remaining console statements for production-ready code*
+
+> **Added:** 2025-12-05 (Post-audit cleanup)  
+> **Completed:** 2025-12-05
+
+### ~~6.1 Files Requiring Console Statement Gating~~ ✅ ALL DONE
+
+| File | Status |
+|------|--------|
+| `lib/customFetch.ts` | ✅ Gated |
+| `lib/supabaseXHR.ts` | ✅ Gated |
+| `lib/supabaseProxy.ts` | ✅ Gated |
+| `lib/supabaseStorage.ts` | ✅ Gated (10+ statements) |
+| `screens/ProcessingScreen.tsx` | ✅ Gated |
+
+### 6.2 Implementation Pattern
+
+All console statements should follow this pattern:
+
+```tsx
+// ❌ Before (ungated)
+console.log('Debug message:', data);
+console.error('Error:', error);
+
+// ✅ After (gated)
+if (__DEV__) {
+  console.log('Debug message:', data);
+}
+if (__DEV__) {
+  console.error('Error:', error);
+}
+```
+
+### 6.3 Detailed Changes
+
+#### 6.3.1 `lib/customFetch.ts`
+
+```tsx
+// Line 18 - wrap in __DEV__
+if (__DEV__) {
+  console.log('Custom fetch request:', { url, method, headers });
+}
+
+// Line 31 - wrap in __DEV__
+if (__DEV__) {
+  console.error('Custom fetch error:', error);
+}
+```
+
+#### 6.3.2 `lib/supabaseXHR.ts`
+
+```tsx
+// Line 46 - wrap in __DEV__
+if (__DEV__) {
+  console.error('XHR Network Error');
+}
+
+// Line 51 - wrap in __DEV__
+if (__DEV__) {
+  console.error('XHR Timeout');
+}
+
+// Line 63 - wrap in __DEV__
+if (__DEV__) {
+  console.log('Sending XHR request to Supabase...');
+}
+```
+
+#### 6.3.3 `lib/supabaseProxy.ts`
+
+```tsx
+// Line 90 - wrap in __DEV__
+if (__DEV__) {
+  console.log('Proxy response status:', response.status);
+}
+
+// Line 94 - wrap in __DEV__
+if (__DEV__) {
+  console.error('Proxy connection failed:', error);
+}
+```
+
+#### 6.3.4 `lib/supabaseStorage.ts`
+
+Multiple locations - all console statements to be wrapped with `__DEV__`.
+
+#### 6.3.5 `screens/ProcessingScreen.tsx`
+
+```tsx
+// Line 50 - wrap in __DEV__
+if (__DEV__) {
+  console.error('No imageUri provided to ProcessingScreen');
+}
+
+// Line 182 - wrap in __DEV__
+if (__DEV__) {
+  console.error('Gemini API failed, falling back to mock:', apiError);
+}
+
+// Line 217 - wrap in __DEV__
+if (__DEV__) {
+  console.error('Transformation error:', error);
+}
+```
+
+### 6.4 Exceptions (Intentionally Ungated)
+
+| File | Reason |
+|------|--------|
+| `index.ts` | Global error handler - needed for crash diagnostics in production |
+
+### 6.5 Testing Checklist
+
+- [x] All files compile without errors
+- [x] No console output in production build
+- [x] App functionality unchanged
+- [x] Error handling still works (errors are caught, just not logged)
+
+### ~~6.6 Commit~~ ⏳ PENDING
+
+```bash
+git add -A
+git commit -m "fix(mobile): gate all console statements with __DEV__
+
+- customFetch.ts: gate debug logging
+- supabaseXHR.ts: gate XHR debug output
+- supabaseProxy.ts: gate proxy connection logs
+- supabaseStorage.ts: gate storage operation logs
+- ProcessingScreen.tsx: gate transformation error logs
+
+Production builds will have zero console output."
+```
+
+---
+
 ## References
 
 - Previous audits: `docs/Audits/`
@@ -492,4 +628,5 @@ These files/patterns are critical and must not be changed:
 ---
 
 *Document created: 2025-12-05*  
-*Next review: After Phase 5 completion*
+*Last updated: 2025-12-05 (Added Phase 6)*  
+*Next review: After Phase 6 completion*

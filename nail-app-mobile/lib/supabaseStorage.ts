@@ -202,10 +202,12 @@ async function resolveStorageUrl(value?: string | null): Promise<string> {
     const publicUrl = await generatePublicUrl(reference.bucket, reference.path)
     return publicUrl || ''
   } catch (error) {
-    console.error('Failed to resolve storage reference', {
-      reference,
-      error
-    })
+    if (__DEV__) {
+      console.error('Failed to resolve storage reference', {
+        reference,
+        error
+      })
+    }
     return value || ''
   }
 }
@@ -261,7 +263,9 @@ export async function uploadImageToSupabase(
     // Normalize payload and ensure contentType/extension alignment
     const { arrayBuffer, contentType, fileExt } = normalizeImagePayload(base64Image)
     const preview = sanitizeBase64(base64Image).slice(0, 8)
-    console.log('[Storage] Upload payload:', { contentType, fileExt, magic: preview })
+    if (__DEV__) {
+      console.log('[Storage] Upload payload:', { contentType, fileExt, magic: preview })
+    }
 
     const timestamp = Date.now()
     const filename = `${userId}/${type}_${timestamp}.${fileExt}`
@@ -296,14 +300,16 @@ export async function uploadImageToSupabase(
           throw error
         }
       } catch (uploadError: any) {
-        console.error('Upload error:', error)
-        console.error('Upload error details:', {
-          bucket,
-          filename,
-          userId,
-          errorMessage: error.message
-        })
-        console.error('Signed URL fallback error:', uploadError?.message || uploadError)
+        if (__DEV__) {
+          console.error('Upload error:', error)
+          console.error('Upload error details:', {
+            bucket,
+            filename,
+            userId,
+            errorMessage: error.message
+          })
+          console.error('Signed URL fallback error:', uploadError?.message || uploadError)
+        }
         return null
       }
     }
@@ -316,7 +322,9 @@ export async function uploadImageToSupabase(
       publicUrl
     }
   } catch (error) {
-    console.error('Error uploading to Supabase:', error)
+    if (__DEV__) {
+      console.error('Error uploading to Supabase:', error)
+    }
     return null
   }
 }
@@ -381,13 +389,17 @@ export async function saveNailLook({
       .single()
 
     if (error) {
-      console.error('Database error:', error)
+      if (__DEV__) {
+        console.error('Database error:', error)
+      }
       return null
     }
 
     return await withResolvedUrls(data as SavedLookRecord)
   } catch (error) {
-    console.error('Error saving to database:', error)
+    if (__DEV__) {
+      console.error('Error saving to database:', error)
+    }
     return null
   }
 }
@@ -468,13 +480,17 @@ export async function deleteLook(lookId: string, userId: string) {
       .eq('user_id', userId)
 
     if (error) {
-      console.error('Error deleting look:', error)
+      if (__DEV__) {
+        console.error('Error deleting look:', error)
+      }
       return false
     }
 
     return true
   } catch (error) {
-    console.error('Error deleting:', error)
+    if (__DEV__) {
+      console.error('Error deleting:', error)
+    }
     return false
   }
 }

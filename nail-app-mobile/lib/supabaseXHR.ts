@@ -43,12 +43,16 @@ export function signUpWithXHR(
     };
     
     xhr.onerror = function() {
-      console.error('XHR Network Error');
+      if (__DEV__) {
+        console.error('XHR Network Error');
+      }
       reject(new Error('Network request failed'));
     };
     
     xhr.ontimeout = function() {
-      console.error('XHR Timeout');
+      if (__DEV__) {
+        console.error('XHR Timeout');
+      }
       reject(new Error('Request timeout'));
     };
     
@@ -60,7 +64,9 @@ export function signUpWithXHR(
       data: metadata,
     });
     
-    console.log('Sending XHR request to Supabase...');
+    if (__DEV__) {
+      console.log('Sending XHR request to Supabase...');
+    }
     xhr.send(body);
   });
 }

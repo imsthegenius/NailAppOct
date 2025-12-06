@@ -14,12 +14,14 @@ export const customFetch = (url: string, options: RequestInit = {}) => {
     headers: Object.fromEntries(headers.entries()),
   };
   
-  // Log the request for debugging
-  console.log('Custom fetch request:', {
-    url,
-    method: newOptions.method || 'GET',
-    headers: newOptions.headers,
-  });
+  // Log the request for debugging (development only)
+  if (__DEV__) {
+    console.log('Custom fetch request:', {
+      url,
+      method: newOptions.method || 'GET',
+      headers: newOptions.headers,
+    });
+  }
   
   // Use global fetch with timeout handling
   return Promise.race([
@@ -28,7 +30,9 @@ export const customFetch = (url: string, options: RequestInit = {}) => {
       setTimeout(() => reject(new Error('Request timeout')), 30000)
     )
   ]).catch((error) => {
-    console.error('Custom fetch error:', error);
+    if (__DEV__) {
+      console.error('Custom fetch error:', error);
+    }
     throw error;
   });
 };

@@ -87,11 +87,15 @@ export async function testProxyConnection(): Promise<boolean> {
         'Content-Type': 'application/json',
       }
     });
-    console.log('Proxy response status:', response.status);
+    if (__DEV__) {
+      console.log('Proxy response status:', response.status);
+    }
     // Even a 404 means the proxy is reachable
     return response.status > 0;
   } catch (error) {
-    console.error('Proxy connection failed:', error);
+    if (__DEV__) {
+      console.error('Proxy connection failed:', error);
+    }
     return false;
   }
 }

@@ -47,7 +47,9 @@ export default function ProcessingScreen({ navigation, route }: Props) {
   const { imageUri, base64 } = route.params || {};
   
   if (!imageUri) {
-    console.error('No imageUri provided to ProcessingScreen');
+    if (__DEV__) {
+      console.error('No imageUri provided to ProcessingScreen');
+    }
     navigation.goBack();
     return null;
   }
@@ -179,7 +181,9 @@ export default function ProcessingScreen({ navigation, route }: Props) {
             );
           }
         } catch (apiError) {
-          console.error('Gemini API failed, falling back to mock:', apiError);
+          if (__DEV__) {
+            console.error('Gemini API failed, falling back to mock:', apiError);
+          }
           // Fallback to mock on error
           transformedImage = await mockTransformNails(
             resolvedBase64,
@@ -214,7 +218,9 @@ export default function ProcessingScreen({ navigation, route }: Props) {
         }, 500);
         
       } catch (error) {
-        console.error('Transformation error:', error);
+        if (__DEV__) {
+          console.error('Transformation error:', error);
+        }
         // Still navigate but with original image
         navigation.replace('Results', { 
           imageUri: imageUri,
